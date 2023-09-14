@@ -6,6 +6,7 @@ use JTL\Checkout\Bestellung;
 use JTL\DB\DbInterface;
 use JTL\Plugin\PluginInterface;
 use JTL\Shop;
+use JTL\Smarty\JTLSmarty;
 use Plugin\jtl_wallee\Services\WalleeTransactionService;
 use Wallee\Sdk\ApiClient;
 use Plugin\jtl_wallee\WalleeHelper;
@@ -38,21 +39,96 @@ final class Handler
 		$this->transactionService = new WalleeTransactionService($this->apiClient, $this->plugin);
 	}
 	
-	public function createAndConfirmTransaction(Bestellung $order)
+	/**
+	 * @return string
+	 */
+	public function createTransaction(): string
 	{
-		$createdTransaction = $this->transactionService->createTransaction($order);
-		$this->transactionService->confirmTransaction($createdTransaction);
-		$transactionId = $createdTransaction->getId();
+		$transactionId = $_SESSION['transactionId'] ?? null;
+		if (!$transactionId) {
+			$order = new Bestellung();
+			$order->Positionen = $_SESSION['Warenkorb']->PositionenArr;
+			$order->cBestellNr = rand(111111, 999999);
+			
+			$createdTransaction = $this->transactionService->createTransaction($order);
+			$transactionId = $createdTransaction->getId();
+			
+			$_SESSION['transactionId'] = $transactionId;
+		}
 		
-		$_SESSION['transactionId'] = $transactionId;
-		
-		return $transactionId;
+		return (string)$transactionId;
 	}
 	
-	public function getRedirectUrlAfterCreatedTransaction($createdTransactionId, $orderData): string
+	public function fetchPossiblePaymentMethods(string $transactionId)
+	{
+		return $this->transactionService->fetchPossiblePaymentMethods($transactionId);
+	}
+	
+	public function getPaymentMethodsForForm(JTLSmarty $smarty): array
+	{
+		$createdTransactionId = $_SESSION['transactionId'] ?? null;
+		$arrayOfPossibleMethods = $_SESSION['arrayOfPossibleMethods'] ?? null;
+		$addressCheck = $_SESSION['addressCheck'] ?? null;
+		$currencyCheck = $_SESSION['currencyCheck'] ?? null;
+		
+		if ($addressCheck !== md5(json_encode((array)$_SESSION['Lieferadresse'])) || $currencyCheck !== $_SESSION['cWaehrungName']) {
+			$arrayOfPossibleMethods = null;
+			if ($createdTransactionId) {
+				$this->transactionService->updateTransaction($createdTransactionId);
+			}
+			$_SESSION['addressCheck'] = md5(json_encode((array)$_SESSION['Lieferadresse']));
+			$_SESSION['currencyCheck'] = $_SESSION['cWaehrungName'];
+		}
+		
+		if (!$createdTransactionId || !$arrayOfPossibleMethods) {
+			if (!$createdTransactionId) {
+				$createdTransactionId = $this->createTransaction();
+			}
+			$possiblePaymentMethods = $this->fetchPossiblePaymentMethods((string)$createdTransactionId);
+			$arrayOfPossibleMethods = [];
+			foreach ($possiblePaymentMethods as $possiblePaymentMethod) {
+				$arrayOfPossibleMethods[] = WalleeHelper::slugify($possiblePaymentMethod->getName(), '-');
+			}
+			$_SESSION['arrayOfPossibleMethods'] = $arrayOfPossibleMethods;
+		}
+		
+		$paymentMethods = $smarty->getTemplateVars('Zahlungsarten');
+		foreach ($paymentMethods as $key => $paymentMethod) {
+			if (empty($paymentMethod->cAnbieter) || strtolower($paymentMethod->cAnbieter) !== 'wallee') {
+				continue;
+			}
+			$slug = WalleeHelper::slugify($paymentMethod->cName, '-');
+			if (!\in_array($slug, $arrayOfPossibleMethods, true)) {
+				unset($paymentMethods[$key]);
+			}
+		}
+		return $paymentMethods;
+	}
+	
+	/**
+	 * @param string $spaceId
+	 * @param int $transactionId
+	 * @return void
+	 */
+	public function confirmTransaction(string $spaceId, int $transactionId): void
+	{
+		$transaction = $this->apiClient->getTransactionService()->read($spaceId, $transactionId);
+		$this->transactionService->confirmTransaction($transaction);
+	}
+
+	public function getRedirectUrlAfterCreatedTransaction($orderData): string
 	{
 		$config = WalleeHelper::getConfigByID($this->plugin->getId());
 		$spaceId = $config[WalleeHelper::SPACE_ID];
+		
+		$createdTransactionId = $_SESSION['transactionId'] ?? null;
+		
+		if (empty($createdTransactionId)) {
+			$failedUrl = Shop::getURL() . '/' . WalleeHelper::PLUGIN_CUSTOM_PAGES['fail-page'][$_SESSION['cISOSprache']];
+			header("Location: " . $failedUrl);
+			exit;
+		}
+		$this->confirmTransaction($spaceId, $createdTransactionId);
 		
 		// TODO create setting with options ['payment_page', 'iframe'];
 		$integration = 'iframe';
@@ -79,7 +155,7 @@ final class Handler
 		$_SESSION['possiblePaymentMethodId'] = $paymentMethod->getId();
 		$_SESSION['possiblePaymentMethodName'] = $paymentMethod->getName();
 		$_SESSION['orderData'] = $orderData;
-
+		
 		return WalleeHelper::PLUGIN_CUSTOM_PAGES['payment-page'][$_SESSION['cISOSprache']];
 	}
 	
