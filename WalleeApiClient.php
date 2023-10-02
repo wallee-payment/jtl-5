@@ -43,7 +43,7 @@ class WalleeApiClient
 			
 			try {
 				$apiClient = new ApiClient($userId, $applicationKey);
-				$apiClientBasePath = getenv('WALLEE_API_BASE_PATH') ? getenv('WALLEE_API_BASE_PATH') : $this->apiClient->getBasePath();
+				$apiClientBasePath = getenv('WALLEE_API_BASE_PATH') ? getenv('WALLEE_API_BASE_PATH') : $apiClient->getBasePath();
 				$apiClient->setBasePath($apiClientBasePath);
 				foreach (self::getDefaultHeaderData() as $key => $value) {
 					$apiClient->addDefaultHeader($key, $value);
