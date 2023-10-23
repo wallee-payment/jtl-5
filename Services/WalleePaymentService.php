@@ -272,8 +272,7 @@ class WalleePaymentService
 		 * PaymentMethodConfiguration $paymentMethod
 		 */
 		foreach ($paymentMethods as $paymentMethod) {
-			$name = 'Wallee ' . $paymentMethod->getName();
-			$slug = trim(strtolower(WalleeHelper::slugify($name)));
+			$slug = WalleeHelper::PAYMENT_METHOD_PREFIX . '_' . $paymentMethod->getId();
 			$paymentMethodsFromPortal[] = $slug;
 			
 			if (!in_array($slug, $installedPaymentMethodsIds, true)) {

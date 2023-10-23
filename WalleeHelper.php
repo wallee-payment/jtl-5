@@ -14,6 +14,7 @@ use JTL\Plugin\Helper as PluginHelper;
  */
 class WalleeHelper extends Helper
 {
+	const PAYMENT_METHOD_PREFIX = 'wallee_payment';
 	const USER_ID = 'jtl_wallee_user_id';
 	const SPACE_ID = 'jtl_wallee_space_id';
 	const APPLICATION_KEY = 'jtl_wallee_application_key';

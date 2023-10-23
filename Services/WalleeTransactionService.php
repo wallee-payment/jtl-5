@@ -52,39 +52,13 @@ class WalleeTransactionService
 	 */
 	public function createTransaction(Bestellung $order): Transaction
 	{
-		$lineItems = [];
-		foreach ($order->Positionen as $product) {
-			switch ($product->nPosTyp) {
-				case \C_WARENKORBPOS_TYP_VERSANDPOS:
-					$lineItems [] = $this->createLineItemShippingItem($product);
-					break;
-				
-				case \C_WARENKORBPOS_TYP_ARTIKEL:
-				case \C_WARENKORBPOS_TYP_KUPON:
-				case \C_WARENKORBPOS_TYP_GUTSCHEIN:
-				case \C_WARENKORBPOS_TYP_ZAHLUNGSART:
-				case \C_WARENKORBPOS_TYP_VERSANDZUSCHLAG:
-				case \C_WARENKORBPOS_TYP_NEUKUNDENKUPON:
-				case \C_WARENKORBPOS_TYP_NACHNAHMEGEBUEHR:
-				case \C_WARENKORBPOS_TYP_VERSAND_ARTIKELABHAENGIG:
-				case \C_WARENKORBPOS_TYP_VERPACKUNG:
-				case \C_WARENKORBPOS_TYP_GRATISGESCHENK:
-				default:
-					$lineItems[] = $this->createLineItemProductItem($product);
-			}
-		}
-		
-		$billingAddress = $this->createBillingAddress();
-		$shippingAddress = $this->createShippingAddress();
-		
 		$transactionPayload = new TransactionCreate();
 		$transactionPayload->setCurrency($_SESSION['cWaehrungName']);
 		$transactionPayload->setLanguage(WalleeHelper::getLanguageString());
-		$transactionPayload->setLineItems($lineItems);
-		$transactionPayload->setBillingAddress($billingAddress);
-		$transactionPayload->setShippingAddress($shippingAddress);
-		
-		
+		$transactionPayload->setLineItems($this->getLineItems($order->Positionen));
+		$transactionPayload->setBillingAddress($this->createBillingAddress());
+		$transactionPayload->setShippingAddress($this->createShippingAddress());
+
 		$transactionPayload->setMetaData([
 		  'spaceId' => $this->spaceId,
 		]);
@@ -116,6 +90,8 @@ class WalleeTransactionService
 		$pendingTransaction->setId($transactionId);
 		$pendingTransaction->setVersion($transaction->getVersion());
 		
+		$lineItems = $this->getLineItems($_SESSION['Warenkorb']->PositionenArr);
+		$pendingTransaction->setLineItems($lineItems);
 		$pendingTransaction->setMetaData([
 		  'orderId' => $_SESSION['kBestellung'],
 		  'spaceId' => $this->spaceId,
@@ -127,7 +103,6 @@ class WalleeTransactionService
 		  ->confirm($this->spaceId, $pendingTransaction);
 		
 		$this->updateLocalWalleeTransaction((string)$transactionId);
-		unset($_SESSION['transactionId']);
 	}
 	
 	/**
@@ -168,19 +143,13 @@ class WalleeTransactionService
 			'iframe'
 		  );
 		
-		$chosenPaymentMethod = \str_replace('jtl_wallee_', '', \strtolower($_SESSION['Zahlungsart']->cModulId));
-		$additionalCheck = explode('_wallee', $chosenPaymentMethod);
-		if (isset($additionalCheck[0]) && !empty($additionalCheck[0])) {
-			$chosenPaymentMethod = \str_replace($additionalCheck[0] . '_', '', $chosenPaymentMethod);
-		}
-		
-		
+		$chosenPaymentMethod = \strtolower($_SESSION['Zahlungsart']->cModulId);
 		foreach ($possiblePaymentMethods as $possiblePaymentMethod) {
-			$slug = 'wallee_' . trim(strtolower(WalleeHelper::slugify($possiblePaymentMethod->getName())));
-			if ($slug === $chosenPaymentMethod) {
+			if (WalleeHelper::PAYMENT_METHOD_PREFIX . '_'  . $possiblePaymentMethod->getId() === $chosenPaymentMethod) {
 				return $possiblePaymentMethod;
 			}
 		}
+
 		return null;
 	}
 	
@@ -416,6 +385,36 @@ class WalleeTransactionService
 			  'created_at' => date('Y-m-d H:i:s')
 			]
 		  );
+	}
+	
+	/**
+	 * @param array $products
+	 * @return array
+	 */
+	private function getLineItems(array $products): array {
+		$lineItems = [];
+		foreach ($products as $product) {
+			switch ($product->nPosTyp) {
+				case \C_WARENKORBPOS_TYP_VERSANDPOS:
+					$lineItems [] = $this->createLineItemShippingItem($product);
+					break;
+				
+				case \C_WARENKORBPOS_TYP_ARTIKEL:
+				case \C_WARENKORBPOS_TYP_KUPON:
+				case \C_WARENKORBPOS_TYP_GUTSCHEIN:
+				case \C_WARENKORBPOS_TYP_ZAHLUNGSART:
+				case \C_WARENKORBPOS_TYP_VERSANDZUSCHLAG:
+				case \C_WARENKORBPOS_TYP_NEUKUNDENKUPON:
+				case \C_WARENKORBPOS_TYP_NACHNAHMEGEBUEHR:
+				case \C_WARENKORBPOS_TYP_VERSAND_ARTIKELABHAENGIG:
+				case \C_WARENKORBPOS_TYP_VERPACKUNG:
+				case \C_WARENKORBPOS_TYP_GRATISGESCHENK:
+				default:
+					$lineItems[] = $this->createLineItemProductItem($product);
+			}
+		}
+		
+		return $lineItems;
 	}
 }
 

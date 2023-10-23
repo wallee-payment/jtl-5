@@ -11,20 +11,23 @@ use Plugin\jtl_wallee\WalleeHelper;
 $apiClient = new WalleeApiClient($plugin->getId());
 $transactionService = new WalleeTransactionService($apiClient->getApiClient(), $plugin);
 $transaction = $transactionService->getTransactionFromPortal($_SESSION['transactionId']);
+unset($_SESSION['transactionId']);
 
-function restoreCart($cartItems)
-{
-	foreach ($cartItems as $cartItem) {
-		if ($cartItem->kArtikel === 0) {
-			continue;
+if (!function_exists('restoreCart')) {
+	function restoreCart($cartItems)
+	{
+		foreach ($cartItems as $cartItem) {
+			if ($cartItem->kArtikel === 0) {
+				continue;
+			}
+			
+			Shop::Container()->getDB()->update(
+			  'tartikel',
+			  'kArtikel',
+			  (int)$cartItem->kArtikel,
+			  (object)['fLagerbestand' => $cartItem->fLagerbestandVorAbschluss]
+			);
 		}
-		
-		Shop::Container()->getDB()->update(
-		  'tartikel',
-		  'kArtikel',
-		  (int)$cartItem->kArtikel,
-		  (object)['fLagerbestand' => $cartItem->fLagerbestandVorAbschluss]
-		);
 	}
 }
 
