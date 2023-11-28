@@ -2,29 +2,29 @@
 
 namespace Plugin\jtl_wallee\Webhooks;
 
-use Plugin\jtl_wallee\Webhooks\Strategies\Interfaces\WhiteLabelMachineOrderUpdateStrategyInterface;
+use Plugin\jtl_wallee\Webhooks\Strategies\Interfaces\WalleeOrderUpdateStrategyInterface;
 
 class WalleeOrderUpdater
 {
 	/**
-	 * @var WhiteLabelMachineOrderUpdateStrategyInterface $strategy
+	 * @var WalleeOrderUpdateStrategyInterface $strategy
 	 */
 	private $strategy;
-	
-	public function __construct(WhiteLabelMachineOrderUpdateStrategyInterface $strategy)
+
+	public function __construct(WalleeOrderUpdateStrategyInterface $strategy)
 	{
 		$this->strategy = $strategy;
 	}
-	
+
 	/**
-	 * @param WhiteLabelMachineOrderUpdateStrategyInterface $strategy
+	 * @param WalleeOrderUpdateStrategyInterface $strategy
 	 * @return void
 	 */
-	public function setStrategy(WhiteLabelMachineOrderUpdateStrategyInterface $strategy)
+	public function setStrategy(WalleeOrderUpdateStrategyInterface $strategy)
 	{
 		$this->strategy = $strategy;
 	}
-	
+
 	/**
 	 * @param string $transactionId
 	 * @return void

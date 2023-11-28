@@ -4,6 +4,7 @@ namespace Plugin\jtl_wallee;
 
 use JTL\Shop;
 use Wallee\Sdk\ApiClient;
+use JTL\Plugin\Helper as PluginHelper;
 
 /**
  * Class WalleeApiClient
@@ -27,10 +28,11 @@ class WalleeApiClient
 			$config = WalleeHelper::getConfigByID($pluginId);
 			$userId = $config[WalleeHelper::USER_ID] ?? null;
 			$applicationKey = $config[WalleeHelper::APPLICATION_KEY] ?? null;
+			$plugin = PluginHelper::getLoaderByPluginID($pluginId)->init($pluginId);
 			
 			if (empty($userId) || empty($applicationKey)) {
 				if (isset($_POST['Setting'])) {
-					$translations = WalleeHelper::getTranslations($this->plugin->getLocalization(), [
+					$translations = WalleeHelper::getTranslations($plugin->getLocalization(), [
 					  'jtl_wallee_incorrect_user_id_or_application_key',
 					]);
 					Shop::Container()->getAlertService()->addDanger(
@@ -50,7 +52,7 @@ class WalleeApiClient
 				}
 				$this->apiClient = $apiClient;
 			} catch (\Exception $exception) {
-				$translations = WalleeHelper::getTranslations($this->plugin->getLocalization(), [
+				$translations = WalleeHelper::getTranslations($plugin->getLocalization(), [
 				  'jtl_wallee_incorrect_user_id_or_application_key',
 				]);
 				Shop::Container()->getAlertService()->addDanger(
@@ -70,8 +72,8 @@ class WalleeApiClient
 		$shop_version = APPLICATION_VERSION;
 		[$major_version, $minor_version, $_] = explode('.', $shop_version, 3);
 		return [
-		  self::SHOP_SYSTEM             => 'jtl',
-		  self::SHOP_SYSTEM_VERSION     => $shop_version,
+		  self::SHOP_SYSTEM => 'jtl',
+		  self::SHOP_SYSTEM_VERSION => $shop_version,
 		  self::SHOP_SYSTEM_AND_VERSION => 'jtl-' . $major_version . '.' . $minor_version,
 		];
 	}

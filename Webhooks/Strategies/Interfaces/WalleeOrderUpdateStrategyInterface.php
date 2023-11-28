@@ -2,7 +2,7 @@
 
 namespace Plugin\jtl_wallee\Webhooks\Strategies\Interfaces;
 
-interface WhiteLabelMachineOrderUpdateStrategyInterface
+interface WalleeOrderUpdateStrategyInterface
 {
 	public function updateOrderStatus(string $entityId): void;
 }
