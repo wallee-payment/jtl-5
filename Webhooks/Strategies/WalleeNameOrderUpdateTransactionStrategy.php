@@ -3,10 +3,14 @@
 namespace Plugin\jtl_wallee\Webhooks\Strategies;
 
 use JTL\Checkout\Bestellung;
+use JTL\Checkout\Zahlungsart;
 use JTL\Customer\Customer;
 use JTL\Mail\Mail\Mail;
 use JTL\Mail\Mailer;
+use JTL\Plugin\Data\PaymentMethod;
+use JTL\Plugin\Payment\Method;
 use JTL\Plugin\Plugin;
+use JTL\Session\Frontend;
 use JTL\Shop;
 use Plugin\jtl_wallee\Services\WalleeOrderService;
 use Plugin\jtl_wallee\Services\WalleeTransactionService;
@@ -54,10 +58,20 @@ class WalleeNameOrderUpdateTransactionStrategy implements WalleeOrderUpdateStrat
 
         switch ($transactionState) {
             case TransactionState::FULFILL:
-                // First we try update if order was created
-                $this->orderService->updateOrderStatus($orderId, \BESTELLUNG_STATUS_IN_BEARBEITUNG, \BESTELLUNG_STATUS_BEZAHLT);
-                $this->transactionService->updateTransactionStatus($transactionId, $transactionState);
-                print 'Order ' . $orderId . ' status was updated to paid. Triggered by Transaction webhook.';
+                $order = new Bestellung($orderId);
+                $localTransaction = $this->transactionService->getLocalWalleeTransactionById((string)$transactionId);
+                if ($localTransaction->state !== TransactionState::FULFILL) {
+                    $this->transactionService->updateTransactionStatus($transactionId, $transactionState);
+                    $paymentMethodEntity = new Zahlungsart((int)$order->kZahlungsart);
+                    $paymentMethod = new Method($paymentMethodEntity->cModulId);
+                    $paymentMethod->setOrderStatusToPaid($order);
+                    $incomingPayment = new stdClass();
+
+                    $incomingPayment->fBetrag = $transaction->getAuthorizationAmount();
+                    $incomingPayment->cISO = $transaction->getCurrency();
+                    $incomingPayment->cZahlungsanbieter = $order->cZahlungsartName;
+                    $paymentMethod->addIncomingPayment($order, $incomingPayment);
+                }
                 break;
 
             case TransactionState::PROCESSING:
@@ -77,7 +91,11 @@ class WalleeNameOrderUpdateTransactionStrategy implements WalleeOrderUpdateStrat
             case TransactionState::DECLINE:
             case TransactionState::VOIDED:
             case TransactionState::FAILED:
-                $this->orderService->updateOrderStatus($orderId, \BESTELLUNG_STATUS_IN_BEARBEITUNG, \BESTELLUNG_STATUS_STORNO);
+
+                $order = new Bestellung($orderId);
+                $paymentMethodEntity = new Zahlungsart((int)$order->kZahlungsart);
+                $paymentMethod = new Method($paymentMethodEntity->cModulId);
+                $paymentMethod->cancelOrder($orderId);
                 $this->transactionService->updateTransactionStatus($transactionId, $transactionState);
                 print 'Order ' . $orderId . ' status was updated to cancelled';
                 break;

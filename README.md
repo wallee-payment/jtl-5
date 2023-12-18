@@ -23,17 +23,11 @@ The Wallee Payment plugin wraps around the Wallee API. This library facilitates 
 
 3. Include it to your JTL shop plugins folder
 
-4. Run the install command
-```bash
-# Please go to /plugins/jtl_wallee and run the command
-composer install
-```
+4. Login to JTL 5 shop backend > Plug-in manager, select the plugin and click Install
 
-5. Login to JTL 5 shop backend > Plug-in manager, select the plugin and click Install
+5. After installation click on Settings "gear" icon
 
-6. After installation click on Settings "gear" icon
-
-7. Enter correct data from Wallee API and click Save. Payment methods will be synchronised and enabled
+6. Enter correct data from Wallee API and click Save. Payment methods will be synchronised and enabled
 
 
 ## Usage
@@ -42,7 +36,7 @@ account dashboard.
 
 ## Documentation
 
-[Documentation](https://plugin-documentation.wallee.com/wallee-payment/jtl-5/1.0.5/docs/en/documentation.html)
+[Documentation](https://plugin-documentation.wallee.com/wallee-payment/jtl-5/1.0.6/docs/en/documentation.html)
 
 ## License
 
