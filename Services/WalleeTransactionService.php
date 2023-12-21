@@ -2,22 +2,26 @@
 
 namespace Plugin\jtl_wallee\Services;
 
-use stdClass;
 use JTL\Cart\CartItem;
 use JTL\Checkout\Bestellung;
+use JTL\Checkout\OrderHandler;
+use JTL\Checkout\Zahlungsart;
 use JTL\Helpers\PaymentMethod;
+use JTL\Plugin\Payment\Method;
+use JTL\Plugin\Plugin;
+use JTL\Session\Frontend;
 use JTL\Shop;
 use Plugin\jtl_wallee\WalleeHelper;
+use stdClass;
 use Wallee\Sdk\ApiClient;
 use Wallee\Sdk\Model\{AddressCreate,
     LineItemCreate,
     LineItemType,
     Transaction,
-    TransactionInvoice,
     TransactionCreate,
+    TransactionInvoice,
     TransactionPending,
-    TransactionState
-};
+    TransactionState};
 
 class WalleeTransactionService
 {
@@ -74,7 +78,6 @@ class WalleeTransactionService
         $transactionPayload->setSuccessUrl($successUrl);
         $transactionPayload->setFailedUrl($failedUrl);
         $createdTransaction = $this->apiClient->getTransactionService()->create($this->spaceId, $transactionPayload);
-        $this->createLocalWalleeTransaction((string)$createdTransaction->getId(), (array)$order);
 
         return $createdTransaction;
     }
@@ -94,12 +97,27 @@ class WalleeTransactionService
         $pendingTransaction->setLineItems($lineItems);
         $pendingTransaction->setCurrency($_SESSION['cWaehrungName']);
         $pendingTransaction->setLanguage(WalleeHelper::getLanguageString());
+
+        $orderId = $_SESSION['kBestellung'];
+        $orderNr = $_SESSION['BestellNr'];
+        $obj = Shop::Container()->getDB()->selectSingleRow('tzahlungsart', 'kZahlungsart', (int)$_SESSION['AktiveZahlungsart']);
+
+        $createOrderBeforePayment = (int)$obj->nWaehrendBestellung ?? 0;
+        if ($createOrderBeforePayment === 1) {
+            $orderId = null;
+            $orderHandler = new OrderHandler(Shop::Container()->getDB(), Frontend::getCustomer(), Frontend::getCart());
+            $orderNr = $orderHandler->createOrderNo();
+        } else {
+            $order = new Bestellung($orderId);
+            $this->createLocalWalleeTransaction((string)$transactionId, (array)$order);
+        }
+        $_SESSION['nextOrderNr'] = $orderNr;
         $pendingTransaction->setMetaData([
-            'orderId' => $_SESSION['kBestellung'],
+            'orderId' => $orderId,
             'spaceId' => $this->spaceId,
         ]);
 
-        $pendingTransaction->setMerchantReference($_SESSION['BestellNr']);
+        $pendingTransaction->setMerchantReference($orderNr);
 
         $this->apiClient->getTransactionService()
             ->confirm($this->spaceId, $pendingTransaction);
@@ -218,7 +236,7 @@ class WalleeTransactionService
     public function getLocalWalleeTransactionById(string $transactionId): ?stdClass
     {
         return Shop::Container()->getDB()->getSingleObject(
-            'SELECT * FROM wallee_transactions WHERE transaction_id = :transaction_id LIMIT 1',
+            'SELECT * FROM wallee_transactions WHERE transaction_id = :transaction_id ORDER BY id DESC LIMIT 1',
             ['transaction_id' => $transactionId]
         );
     }
@@ -276,6 +294,90 @@ class WalleeTransactionService
         }
 
         return $lineItems;
+    }
+
+    /**
+     * @param string $transactionId
+     * @param array $orderData
+     * @return void
+     */
+    public function createLocalWalleeTransaction(string $transactionId, array $orderData): void
+    {
+        $newTransaction = new \stdClass();
+        $newTransaction->transaction_id = $transactionId;
+        $newTransaction->data = json_encode($orderData);
+        $newTransaction->payment_method = $orderData['cZahlungsartName'];
+        $newTransaction->order_id = $orderData['kBestellung'];
+        $newTransaction->space_id = $this->spaceId;
+        $newTransaction->state = TransactionState::PENDING;
+        $newTransaction->created_at = date('Y-m-d H:i:s');
+
+        Shop::Container()->getDB()->insert('wallee_transactions', $newTransaction);
+    }
+
+    /**
+     * @param string $transactionId
+     * @param Bestellung $order
+     * @param Transaction $transaction
+     * @return void
+     */
+    public function addIncommingPayment(string $transactionId, Bestellung $order, Transaction $transaction): void
+    {
+        $localTransaction = $this->getLocalWalleeTransactionById($transactionId);
+        if ($localTransaction->state !== TransactionState::FULFILL) {
+            $this->updateTransactionStatus($transactionId, TransactionState::FULFILL);
+            $paymentMethodEntity = new Zahlungsart((int)$order->kZahlungsart);
+            $paymentMethod = new Method($paymentMethodEntity->cModulId);
+            $paymentMethod->setOrderStatusToPaid($order);
+            $incomingPayment = new stdClass();
+            $incomingPayment->fBetrag = $transaction->getAuthorizationAmount();
+            $incomingPayment->cISO = $transaction->getCurrency();
+            $incomingPayment->cZahlungsanbieter = $order->cZahlungsartName;
+            $paymentMethod->addIncomingPayment($order, $incomingPayment);
+        }
+    }
+
+    /**
+     * @return void
+     */
+    public function createOrderAfterPayment(): void
+    {
+        $_SESSION['finalize'] = true;
+        $orderHandler = new OrderHandler(Shop::Container()->getDB(), Frontend::getCustomer(), Frontend::getCart());
+        $order = $orderHandler->finalizeOrder($_SESSION['nextOrderNr']);
+        $orderData = $order->fuelleBestellung(true);
+        $_SESSION['orderData'] = $orderData;
+
+        $transactionId = $_SESSION['transactionId'] ?? null;
+        if ($transactionId) {
+            $this->createLocalWalleeTransaction((string)$transactionId, (array)$_SESSION['orderData']);
+            $transaction = $this->getTransactionFromPortal($transactionId);
+            if ($transaction->getState() === TransactionState::FULFILL) {
+                $this->addIncommingPayment((string)$transactionId, $orderData, $transaction);
+            }
+        }
+    }
+
+    /**
+     * @param string $transactionId
+     * @param array $orderData
+     * @return void
+     */
+    public function updateLocalWalleeTransaction(string $transactionId): void
+    {
+        Shop::Container()
+            ->getDB()->update(
+                'wallee_transactions',
+                ['transaction_id'],
+                [$transactionId],
+                (object)[
+                    'state' => TransactionState::PROCESSING,
+                    'payment_method' => $_SESSION['Zahlungsart']->cName,
+                    'order_id' => $_SESSION['kBestellung'],
+                    'space_id' => $this->spaceId,
+                    'updated_at' => date('Y-m-d H:i:s')
+                ]
+            );
     }
 
     private function downloadDocument($document)
@@ -379,47 +481,6 @@ class WalleeTransactionService
         $shippingAddress->setSalutation($customer->cTitel);
 
         return $shippingAddress;
-    }
-
-    /**
-     * @param string $transactionId
-     * @param array $orderData
-     * @return void
-     */
-    private function createLocalWalleeTransaction(string $transactionId, array $orderData): void
-    {
-        $newTransaction = new \stdClass();
-        $newTransaction->transaction_id = $transactionId;
-        $newTransaction->data = json_encode($orderData);
-        $newTransaction->payment_method = $orderData['cZahlungsartName'];
-        $newTransaction->order_id = $orderData['kBestellung'];
-        $newTransaction->space_id = $this->spaceId;
-        $newTransaction->state = TransactionState::PENDING;
-        $newTransaction->created_at = date('Y-m-d H:i:s');
-
-        Shop::Container()->getDB()->insert('wallee_transactions', $newTransaction);
-    }
-
-    /**
-     * @param string $transactionId
-     * @param array $orderData
-     * @return void
-     */
-    private function updateLocalWalleeTransaction(string $transactionId): void
-    {
-        Shop::Container()
-            ->getDB()->update(
-                'wallee_transactions',
-                ['transaction_id'],
-                [$transactionId],
-                (object)[
-                    'state' => TransactionState::PROCESSING,
-                    'payment_method' => $_SESSION['Zahlungsart']->cName,
-                    'order_id' => $_SESSION['kBestellung'],
-                    'space_id' => $this->spaceId,
-                    'updated_at' => date('Y-m-d H:i:s')
-                ]
-            );
     }
 }
 
