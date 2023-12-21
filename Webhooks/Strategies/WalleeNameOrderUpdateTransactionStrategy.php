@@ -70,10 +70,9 @@ class WalleeNameOrderUpdateTransactionStrategy implements WalleeOrderUpdateStrat
 
             case TransactionState::AUTHORIZED:
                 $this->transactionService->updateTransactionStatus($transactionId, $transactionState);
-                if ($this->isSendConfirmationEmail()) {
+                if ($orderId && $this->isSendConfirmationEmail()) {
                     $this->sendConfirmationMail($orderId);
                 }
-                print 'Order ' . $orderId . ' was authorized';
                 break;
 
             case TransactionState::DECLINE:

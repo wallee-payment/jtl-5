@@ -9,7 +9,10 @@ use JTL\Plugin\PluginInterface;
 use JTL\Session\Frontend;
 use JTL\Shop;
 use JTL\Smarty\JTLSmarty;
+use Plugin\jtl_wallee\Services\WalleeRefundService;
 use Plugin\jtl_wallee\Services\WalleeTransactionService;
+use Plugin\jtl_wallee\Webhooks\Strategies\WalleeNameOrderUpdateTransactionStrategy;
+use Plugin\jtl_wallee\Webhooks\WalleeOrderUpdater;
 use Plugin\jtl_wallee\WalleeHelper;
 use Wallee\Sdk\ApiClient;
 use Wallee\Sdk\Model\TransactionState;
@@ -30,6 +33,11 @@ final class Handler
     private $transactionService;
 
     /**
+     * @var WalleeRefundService $refundService
+     */
+    protected $refundService;
+
+    /**
      * Handler constructor.
      * @param PluginInterface $plugin
      * @param DbInterface|null $db
@@ -41,6 +49,7 @@ final class Handler
         $this->apiClient = $apiClient;
         $this->db = $db ?? Shop::Container()->getDB();
         $this->transactionService = new WalleeTransactionService($this->apiClient, $this->plugin);
+        $this->refundService = new WalleeRefundService($this->apiClient, $this->plugin);
     }
 
     /**
@@ -158,6 +167,39 @@ final class Handler
         $transaction = $this->transactionService->getLocalWalleeTransactionById((string)$transactionId);
         if ($transaction->state === TransactionState::AUTHORIZED) {
             $this->transactionService->completePortalTransaction($transactionId);
+        }
+    }
+
+    /**
+     * @param array $args
+     * @return void
+     */
+    public function cancelOrderAfterWawi(array $args): void
+    {
+        $order = $args['oBestellung'] ?? [];
+
+        $obj = Shop::Container()->getDB()->selectSingleRow('wallee_transactions', 'order_id', $order->kBestellung);
+        $transactionId = $obj->transaction_id ?? '';
+        if (empty($transactionId)) {
+            return;
+        }
+
+        $transaction = $this->transactionService->getLocalWalleeTransactionById((string)$transactionId);
+
+        if ((int)$order->cStatus === \BESTELLUNG_STATUS_IN_BEARBEITUNG) {
+            if ($transaction->state === TransactionState::AUTHORIZED) {
+                $this->transactionService->cancelPortalTransaction($transactionId);
+            }
+            print 'Cancelled transactionId: ' . $transactionId;
+        }
+
+        if ((int)$order->cStatus === \BESTELLUNG_STATUS_BEZAHLT) {
+            try {
+                $this->refundService->makeRefund((string)$transactionId, (float)$order->fGesamtsumme);
+            } catch (\Exception $e) {
+
+            }
+            print 'Refund for transactionId: ' . $transactionId . ' of amount ' . $order->fGesamtsumme . ' has been made';
         }
     }
 
