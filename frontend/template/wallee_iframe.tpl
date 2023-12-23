@@ -1,3 +1,5 @@
+<div class="flashbags"></div>
+
 <div class="wallee-block">
     <div class="card checkout-card">
         <div class="card-body">

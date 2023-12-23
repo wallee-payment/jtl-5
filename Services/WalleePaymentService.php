@@ -29,30 +29,30 @@ class WalleePaymentService
 	const TABLE_NAME_PAYMENT_METHOD_CLASS = 'tpluginzahlungsartklasse';
 	const TABLE_NAME_SHIPPING_ARTS = 'tversandart';
 	const TABLE_NAME_SHIPPING_PAYMENT = 'tversandartzahlungsart';
-	
+
 	private $localeLanguageMapping = [
 	  'de-DE' => 'ger',
 	  'fr-FR' => 'fre',
 	  'it-IT' => 'ita',
 	  'en-US' => 'eng',
 	];
-	
+
 	/**
 	 * @var ApiClient $apiClient
 	 */
 	protected ApiClient $apiClient;
-	
+
 	/**
 	 * @var int $pluginId
 	 */
 	protected int $pluginId;
-	
+
 	public function __construct(ApiClient $apiClient, int $pluginId)
 	{
 		$this->apiClient = $apiClient;
 		$this->pluginId = $pluginId;
 	}
-	
+
 	public function getPaymentMethodConfigurations(): ?array
 	{
 		$entityQueryFilter = (new EntityQueryFilter())
@@ -60,14 +60,14 @@ class WalleePaymentService
 		  ->setFieldName('state')
 		  ->setType(EntityQueryFilterType::LEAF)
 		  ->setValue(CreationEntityState::ACTIVE);
-		
+
 		$entityQuery = (new EntityQuery())->setFilter($entityQueryFilter);
 		$apiClient = $this->apiClient;
 		$plugin = PluginHelper::getLoaderByPluginID($this->pluginId)->init($this->pluginId);
-		
+
 		$config = WalleeHelper::getConfigByID($this->pluginId);
 		$spaceId = $config[WalleeHelper::SPACE_ID];
-		
+
 		if (empty($spaceId)) {
 			$translations = WalleeHelper::getTranslations($plugin->getLocalization(), [
 			  'jtl_wallee_empty_space_id',
@@ -78,7 +78,7 @@ class WalleePaymentService
 			);
 			return [];
 		}
-		
+
 		try {
 			$paymentMethodConfigurations = $apiClient->getPaymentMethodConfigurationService()->search($spaceId, $entityQuery);
 		} catch (\Exception $exception) {
@@ -91,14 +91,14 @@ class WalleePaymentService
 			);
 			return [];
 		}
-		
+
 		usort($paymentMethodConfigurations, function (PaymentMethodConfiguration $item1, PaymentMethodConfiguration $item2) {
 			return $item1->getSortOrder() <=> $item2->getSortOrder();
 		});
-		
+
 		return $paymentMethodConfigurations;
 	}
-	
+
 	/**
 	 * @param string $slug
 	 * @param array $data
@@ -110,11 +110,11 @@ class WalleePaymentService
 		$paymentMethod = Shop::Container()
 		  ->getDB()
 		  ->select(self::TABLE_NAME_PAYMENT_METHODS, 'cModulId', $slug);
-		
+
 		if ($paymentMethod) {
 			return null;
 		}
-		
+
 		$method = new stdClass();
 		$method->cName = $data['module'];
 		$method->cModulId = $slug;
@@ -127,7 +127,7 @@ class WalleePaymentService
 		$method->nActive = 1;
 		$method->cAnbieter = 'Wallee';
 		$method->cTSCode = \strtoupper(WalleeHelper::slugify($data['module']));
-		$method->nWaehrendBestellung = 0;
+		$method->nWaehrendBestellung = 1;
 		$method->nCURL = 1;
 		$method->nSOAP = 0;
 		$method->nSOCKETS = 0;
@@ -137,10 +137,10 @@ class WalleePaymentService
 		  ->insert(self::TABLE_NAME_PAYMENT_METHODS, $method);
 		$method->kZahlungsart = $methodId;
 		$method->nNutzbar = PaymentMethod::activatePaymentMethod($method) ? 1 : 0;
-		
+
 		return $methodId;
 	}
-	
+
 	/**
 	 * @param array $titles
 	 * @param array $descriptions
@@ -162,7 +162,7 @@ class WalleePaymentService
 			  ->insert(self::TABLE_NAME_PAYMENT_METHOD_LANG, $localizedMethod);
 		}
 	}
-	
+
 	/**
 	 * @param string $pluginId
 	 * @param string $slug
@@ -177,30 +177,30 @@ class WalleePaymentService
 		$paymentClass->cClassName = $data['className'] ?? null;
 		$paymentClass->cTemplatePfad = $data['templateFile'] ?? null;
 		$paymentClass->cZusatzschrittTemplate = $data['additionalTemplateFile'] ?? null;
-		
+
 		Shop::Container()
 		  ->getDB()
 		  ->insert(self::TABLE_NAME_PAYMENT_METHOD_CLASS, $paymentClass);
 	}
-	
+
 	public function getInstalledPaymentMethods(int $status = self::STATUS_ENABLED): array
 	{
 		$objects = Shop::Container()
 		  ->getDB()
 		  ->selectAll(self::TABLE_NAME_PAYMENT_METHODS, 'nActive', $status);
-		
+
 		$filteredObjects = array_filter($objects, function ($object) {
 			return stripos($object->cAnbieter, 'Wallee') !== false;
 		});
-		
+
 		$installedPaymentMetodsIds = [];
 		foreach ($filteredObjects as $filteredObject) {
 			$installedPaymentMetodsIds[] = $filteredObject->cModulId;
 		}
-		
+
 		return $installedPaymentMetodsIds;
 	}
-	
+
 	/**
 	 * @param array $installedPaymentMethods
 	 * @return void
@@ -212,7 +212,7 @@ class WalleePaymentService
                 FROM ' . self::TABLE_NAME_SHIPPING_ARTS . '
                 ORDER BY kVersandart DESC'
 		);
-		
+
 		foreach ($shippingMethods as $shippingMethod) {
 			foreach ($installedPaymentMethods as $installedPaymentMethodId) {
 				$enablePaymentMethod = new stdClass();
@@ -220,14 +220,14 @@ class WalleePaymentService
 				$enablePaymentMethod->kZahlungsart = $installedPaymentMethodId;
 				$enablePaymentMethod->fAufpreis = '0.00';
 				$enablePaymentMethod->cAufpreisTyp = 'festpreis';
-				
+
 				Shop::Container()
 				  ->getDB()
 				  ->insert(self::TABLE_NAME_SHIPPING_PAYMENT, $enablePaymentMethod);
 			}
 		}
 	}
-	
+
 	/**
 	 * @return ApiClient|null
 	 */
@@ -235,7 +235,7 @@ class WalleePaymentService
 	{
 		return $this->apiClient;
 	}
-	
+
 	/**
 	 * @param array $installedPaymentMethodsIds
 	 * @param array $paymentMethodsFromPortal
@@ -253,7 +253,7 @@ class WalleePaymentService
 			}
 		}
 	}
-	
+
 	/**
 	 * @param $status
 	 * @return void
@@ -268,7 +268,7 @@ class WalleePaymentService
 			Shop::Container()->getDB()->update(self::TABLE_NAME_PAYMENT_METHODS, 'cModulId', $paymentMethodId, $method);
 			$check = Shop::Container()->getDB()->selectAll(self::TABLE_NAME_PAYMENT_METHODS, 'cModulId', $paymentMethodId);
 			$paymentMethodsToEnableIds[] = ($check[0])->kZahlungsart;
-			
+
 			if ($status === self::STATUS_DISABLED) {
 				Shop::Container()->getDB()->delete(self::TABLE_NAME_SHIPPING_PAYMENT, 'kZahlungsart', ($check[0])->kZahlungsart);
 			}
@@ -277,21 +277,21 @@ class WalleePaymentService
 			$this->enablePaymentMethods($paymentMethodsToEnableIds);
 		}
 	}
-	
+
 	public function syncPaymentMethods()
 	{
 		if (!$this->apiClient) {
 			return;
 		}
-		
+
 		$paymentMethods = $this->getPaymentMethodConfigurations();
-		
+
 		if (empty($paymentMethods)) {
 			return;
 		}
-		
+
 		$translations = [];
-		
+
 		$installedPaymentMethodsIds = $this->getInstalledPaymentMethods(self::STATUS_ENABLED);
 		$paymentMethodsFromPortal = [];
 		$i = 0;
@@ -301,10 +301,10 @@ class WalleePaymentService
 		foreach ($paymentMethods as $paymentMethod) {
 			$slug = WalleeHelper::PAYMENT_METHOD_PREFIX . '_' . $paymentMethod->getId();
 			$paymentMethodsFromPortal[] = $slug;
-			
+
 			if (!in_array($slug, $installedPaymentMethodsIds, true)) {
 				$check = Shop::Container()->getDB()->selectAll(self::TABLE_NAME_PAYMENT_METHODS, 'cModulId', $slug);
-				
+
 				if (!empty($check) && (int)(($check[0])->nActive) === 0) {
 					$method = new stdClass();
 					$method->nActive = 1;
@@ -317,15 +317,15 @@ class WalleePaymentService
 						$language = $languageMapping[$locale];
 						$descriptions[$language] = $translations[$language][$slug . '_description'] = addslashes($text);
 					}
-					
+
 					$titles = [];
 					foreach ($paymentMethod->getResolvedTitle() as $locale => $text) {
 						$language = $languageMapping[$locale];
 						$titles[$language] = $translations[$language][$slug . '_title'] = addslashes(str_replace('-/', ' / ', $text));
 					}
-					
+
 					$installedPaymentMethods = [];
-					
+
 					$paymentMethod = [
 					  'state' => (string)$paymentMethod->getState(),
 					  'logo_url' => $paymentMethod->getResolvedImageUrl(),
@@ -337,7 +337,7 @@ class WalleePaymentService
 					  'titles' => $titles,
 					  'descriptions' => $descriptions
 					];
-					
+
 					$paymentMethodId = $this->installPaymentMethod($slug, $paymentMethod, $i);
 					if ($paymentMethodId) {
 						$installedPaymentMethods[] = $paymentMethodId;
@@ -349,9 +349,9 @@ class WalleePaymentService
 				}
 			}
 		}
-		
+
 		$this->disablePaymentMethods($installedPaymentMethodsIds, $paymentMethodsFromPortal);
-		
+
 		$plugin = PluginHelper::getLoaderByPluginID($this->pluginId)->init($this->pluginId);
 		$translations = WalleeHelper::getTranslations($plugin->getLocalization(), [
 		  'jtl_wallee_payment_methods_were_synchronised',
