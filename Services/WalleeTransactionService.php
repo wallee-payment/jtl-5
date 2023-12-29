@@ -78,6 +78,7 @@ class WalleeTransactionService
 
         $transactionPayload->setSuccessUrl($successUrl);
         $transactionPayload->setFailedUrl($failedUrl);
+
         $createdTransaction = $this->apiClient->getTransactionService()->create($this->spaceId, $transactionPayload);
 
         return $createdTransaction;
@@ -456,6 +457,8 @@ class WalleeTransactionService
         $lineItem->setQuantity($productData->nAnzahl);
         preg_match_all('!\d+!', $productData->cGesamtpreisLocalized[0][$_SESSION['cWaehrungName']], $price);
         $priceDecimal = number_format(floatval(($price[0][0] . '.' . $price[0][1])), 2);
+        $priceDecimal = (float)str_replace(',', '', $priceDecimal);
+
         $lineItem->setAmountIncludingTax($priceDecimal);
         $lineItem->setType(LineItemType::PRODUCT);
 
@@ -476,6 +479,7 @@ class WalleeTransactionService
         $lineItem->setQuantity(1);
         preg_match_all('!\d+!', $productData->cGesamtpreisLocalized[0][$_SESSION['cWaehrungName']], $price);
         $priceDecimal = number_format(floatval(($price[0][0] . '.' . $price[0][1])), 2);
+        $priceDecimal = (float)str_replace(',', '', $priceDecimal);
         $lineItem->setAmountIncludingTax($priceDecimal);
         $lineItem->setType(LineItemType::SHIPPING);
 
