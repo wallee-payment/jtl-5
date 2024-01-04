@@ -4,15 +4,16 @@ namespace Plugin\jtl_wallee\frontend;
 
 use JTL\Checkout\Bestellung;
 use JTL\Checkout\OrderHandler;
+use JTL\Checkout\Zahlungsart;
 use JTL\DB\DbInterface;
+use JTL\Helpers\PaymentMethod;
+use JTL\Plugin\Payment\Method;
 use JTL\Plugin\PluginInterface;
 use JTL\Session\Frontend;
 use JTL\Shop;
 use JTL\Smarty\JTLSmarty;
 use Plugin\jtl_wallee\Services\WalleeRefundService;
 use Plugin\jtl_wallee\Services\WalleeTransactionService;
-use Plugin\jtl_wallee\Webhooks\Strategies\WalleeNameOrderUpdateTransactionStrategy;
-use Plugin\jtl_wallee\Webhooks\WalleeOrderUpdater;
 use Plugin\jtl_wallee\WalleeHelper;
 use Wallee\Sdk\ApiClient;
 use Wallee\Sdk\Model\TransactionState;
@@ -195,7 +196,8 @@ final class Handler
 
             case \BESTELLUNG_STATUS_BEZAHLT:
                 try {
-                    $this->refundService->makeRefund((string)$transactionId, (float)$order->fGesamtsumme);
+                    $portalTransaction = $this->transactionService->getTransactionFromPortal($transactionId);
+                    $this->refundService->makeRefund((string)$transactionId, (float)$portalTransaction->getAuthorizationAmount());
                 } catch (\Exception $e) {
 
                 }

@@ -5,10 +5,13 @@ namespace Plugin\jtl_wallee\adminmenu;
 use JTL\Catalog\Currency;
 use JTL\Catalog\Product\Preise;
 use JTL\Checkout\Bestellung;
+use JTL\Checkout\Zahlungsart;
 use JTL\DB\DbInterface;
 use JTL\DB\ReturnType;
+use JTL\Helpers\PaymentMethod;
 use JTL\Language\LanguageHelper;
 use JTL\Pagination\Pagination;
+use JTL\Plugin\Payment\Method;
 use JTL\Plugin\Plugin;
 use JTL\Plugin\PluginInterface;
 use JTL\Session\Frontend;
@@ -17,6 +20,7 @@ use JTL\Smarty\JTLSmarty;
 use Plugin\jtl_wallee\Services\WalleeRefundService;
 use Plugin\jtl_wallee\Services\WalleeTransactionService;
 use Plugin\jtl_wallee\WalleeHelper;
+use stdClass;
 use Wallee\Sdk\ApiClient;
 use Wallee\Sdk\Model\{TransactionInvoiceState, TransactionState};
 
@@ -107,6 +111,22 @@ class AdminTabProvider
                     $transactionId = $_REQUEST['transactionId'] ?: null;
                     $amount = $_REQUEST['amount'] ?: 0;
                     $this->refundService->makeRefund($transactionId, floatval($amount));
+
+
+                    $transaction = $this->transactionService->getTransactionFromPortal($transactionId);
+                    $transactionId = $transaction->getId();
+                    $localTransaction = $this->transactionService->getLocalWalleeTransactionById((string)$transactionId);
+                    $orderId = (int)$localTransaction->order_id;
+                    $order = new Bestellung($orderId);
+
+                    $paymentMethodEntity = new Zahlungsart((int)$order->kZahlungsart);
+                    $paymentMethod = new Method($paymentMethodEntity->cModulId);
+                    $paymentMethod->setOrderStatusToPaid($order);
+                    $incomingPayment = new stdClass();
+                    $incomingPayment->fBetrag = -1 * floatval($amount);
+                    $incomingPayment->cISO = $transaction->getCurrency();
+                    $incomingPayment->cZahlungsanbieter = $order->cZahlungsartName;
+                    $paymentMethod->addIncomingPayment($order, $incomingPayment);
                     exit;
 
                 case self::ACTION_ORDER_DETAILS:
