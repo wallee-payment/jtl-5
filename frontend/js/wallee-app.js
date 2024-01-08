@@ -52,11 +52,18 @@
 
         activateLoader: function (activate) {
             const buttons = document.querySelectorAll('button');
+            const spinnerExists = !!document.getElementById('spinner');
             if (activate) {
+                if (spinnerExists) {
+                    document.getElementById('spinner').style.display = 'inline-block';
+                }
                 for (let i = 0; i < buttons.length; i++) {
                     buttons[i].disabled = true;
                 }
             } else {
+                if (spinnerExists) {
+                    document.getElementById('spinner').style.display = 'none';
+                }
                 for (let i = 0; i < buttons.length; i++) {
                     buttons[i].disabled = false;
                 }
@@ -105,14 +112,14 @@
                         if (this.measureIframe(iframeContainer) < 30) {
                             WalleeCheckout.handler.submit();
                         }
-                    }, 500);
+                    }, 1000);
                 });
                 WalleeCheckout.handler.setHeightChangeCallback((height)=>{
                     setTimeout(function () {
                         if(height < 30) {
                             WalleeCheckout.handler.submit();
                         }
-                    }, 500);
+                    }, 1000);
                 });
                 WalleeCheckout.handler.create(iframeContainer);
             }

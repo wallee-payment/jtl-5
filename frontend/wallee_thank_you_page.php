@@ -25,4 +25,4 @@ $_SESSION['arrayOfPossibleMethods'] = null;
 
 $smarty
     ->assign('Bestellung', $_SESSION['orderData'])
-    ->assign('mainCssUrl', $plugin->getPaths()->getBaseURL() . 'frontend/css/postfinancecheckout-loader-main.css');
+    ->assign('mainCssUrl', $plugin->getPaths()->getBaseURL() . 'frontend/css/wallee-loader-main.css');
