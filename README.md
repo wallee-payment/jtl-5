@@ -36,7 +36,7 @@ account dashboard.
 
 ## Documentation
 
-[Documentation](https://plugin-documentation.wallee.com/wallee-payment/jtl-5/1.0.16/docs/en/documentation.html)
+[Documentation](https://plugin-documentation.wallee.com/wallee-payment/jtl-5/1.0.17/docs/en/documentation.html)
 
 ## License
 
