@@ -17,6 +17,7 @@ use Plugin\jtl_wallee\WalleeHelper;
 use stdClass;
 use Wallee\Sdk\ApiClient;
 use Wallee\Sdk\Model\{AddressCreate,
+    Gender,
     LineItemCreate,
     LineItemType,
     Transaction,
@@ -143,7 +144,6 @@ class WalleeTransactionService
         ]);
 
         $pendingTransaction->setMerchantReference($orderNr);
-
         $this->apiClient->getTransactionService()
             ->confirm($this->spaceId, $pendingTransaction);
 
@@ -533,6 +533,12 @@ class WalleeTransactionService
         $billingAddress->setPhoneNumber($customer->cMobil);
         $billingAddress->setSalutation($customer->cTitel);
 
+        $gender = $_SESSION['orderData']?->oKunde?->cAnrede ?? null;
+        if ($gender !== null) {
+            $billingAddress->setGender($gender === 'm' ? Gender::MALE : Gender::FEMALE);
+            $billingAddress->setSalutation($gender === 'm' ? 'Mr' : 'Ms');
+        }
+
         return $billingAddress;
     }
 
@@ -555,6 +561,12 @@ class WalleeTransactionService
         $shippingAddress->setOrganizationName($customer->cFirma);
         $shippingAddress->setPhoneNumber($customer->cMobil);
         $shippingAddress->setSalutation($customer->cTitel);
+
+        $gender = $_SESSION['orderData']?->oKunde?->cAnrede ?? null;
+        if ($gender !== null) {
+            $shippingAddress->setGender($gender === 'm' ? Gender::MALE : Gender::FEMALE);
+            $shippingAddress->setSalutation($gender === 'm' ? 'Mr' : 'Ms');
+        }
 
         return $shippingAddress;
     }
