@@ -54,11 +54,28 @@ class AdminTabProvider
      * @var JTLSmarty
      */
     private $smarty;
-
+    
+    /**
+     * @var ApiClient|null
+     */
+    private $apiClient;
+    
+    /**
+     * @var WalleeTransactionService
+     */
+    private $transactionService;
+    
+    /**
+     * @var WalleeRefundService
+     */
+    private $refundService;
+    
+    
     /**
      * @param PluginInterface $plugin
+     * @param DbInterface $db
+     * @param JTLSmarty $smarty
      */
-
     public function __construct(PluginInterface $plugin, DbInterface $db, JTLSmarty $smarty)
     {
         $this->plugin = $plugin;
@@ -145,10 +162,13 @@ class AdminTabProvider
             $orderId = (int)$order->kBestellung;
             $ordObj = new Bestellung($orderId);
             $ordObj->fuelleBestellung(true, 0, false);
-            $ordObj->wallee_transaction_id = $order->transaction_id;
-            $ordObj->wallee_state = $order->state;
-            $ordObj->total_amount = (float)$order->fGesamtsumme;
-            $orders[$orderId] = $ordObj;
+            $orderDetails = [
+              'orderDetails' => $ordObj,
+              'wallee_transaction_id' => $order->transaction_id,
+              'wallee_state' => $order->state,
+              'total_amount' => (float)$order->fGesamtsumme
+            ];
+            $orders[$orderId] = $orderDetails;
         }
 
         $paymentStatus = WalleeHelper::getPaymentStatusWithTransations($this->plugin->getLocalization());
