@@ -11,12 +11,14 @@ use JTL\Checkout\OrderHandler;
 use JTL\Checkout\Zahlungsart;
 use JTL\Helpers\PaymentMethod;
 use JTL\Helpers\Tax;
+use JTL\Mail\Mailer;
+use JTL\Mail\Mail\Mail;
 use JTL\Plugin\Payment\Method;
 use JTL\Plugin\Plugin;
 use JTL\Session\Frontend;
 use JTL\Shop;
 use Plugin\jtl_wallee\WalleeHelper;
-use stdClass;
+use Plugin\jtl_wallee\Services\WalleeMailService;
 use Wallee\Sdk\ApiClient;
 use Wallee\Sdk\Model\{
     AddressCreate,
@@ -58,11 +60,19 @@ class WalleeTransactionService
      * @var $spaceViewId
      */
     protected $spaceViewId;
- 
+
     /**
      * @var $plugin
      */
     protected $plugin;
+
+    /**
+     * @var $mailService
+     *      The email service.
+     *
+     * @see \Plugin\jtl_wallee\Services\WalleeMailService
+     */
+    protected $mailService;
 
     public function __construct(ApiClient $apiClient, $plugin)
     {
@@ -73,6 +83,11 @@ class WalleeTransactionService
         $this->apiClient = $apiClient;
         $this->spaceId = $spaceId;
         $this->spaceViewId = $config[WalleeHelper::SPACE_VIEW_ID];
+
+        $mailer = Shop::Container()->get(Mailer::class);
+        $mail = new Mail();
+        $db = Shop::Container()->getDB();
+        $this->mailService = new WalleeMailService($mailer, $mail, $db, $config);
     }
 
     /**
@@ -105,9 +120,9 @@ class WalleeTransactionService
         $customerId = $customer->kKunde ?? '';
 
         $transactionPayload->setSuccessUrl($successUrl)
-          ->setFailedUrl($failedUrl)
-          ->setCustomerEmailAddress($customerEmail)
-          ->setCustomerId($customerId);
+            ->setFailedUrl($failedUrl)
+            ->setCustomerEmailAddress($customerEmail)
+            ->setCustomerId($customerId);
 
         $createdTransaction = $this->apiClient->getTransactionService()->create($this->spaceId, $transactionPayload);
 
@@ -132,18 +147,22 @@ class WalleeTransactionService
 
         $obj = Shop::Container()->getDB()->selectSingleRow('tzahlungsart', 'kZahlungsart', (int)$_SESSION['AktiveZahlungsart']);
         $createOrderAfterPayment = (int)$obj->nWaehrendBestellung ?? 1;
-        
+
         $orderNumber = null;
         if ($createOrderAfterPayment === 1) {
             $orderId = null;
-            [$orderNr, $orderNumber] = WalleeHelper::getNextOrderNr();
-            $transactionByOrderReference = $this->getTransactionByOrderReference($orderNr);
-            
-            if ($transactionByOrderReference) {
-                [$orderNr, $orderNumber] = WalleeHelper::getNextOrderNr(1);
-                $pendingTransaction->setVersion($transaction->getVersion() + 1);
-                $pendingTransaction->setMerchantReference($orderNr);
-                $this->apiClient->getTransactionService()->update($this->spaceId, $pendingTransaction);
+            if ($this->isPreventFromDuplicatedOrders()) {
+                [$orderNr, $orderNumber] = WalleeHelper::createOrderNo();
+                $transactionByOrderReference = $this->getTransactionByOrderReference($orderNr);
+                
+                if ($transactionByOrderReference) {
+                    [$orderNr, $orderNumber] = WalleeHelper::createOrderNo();
+                    $pendingTransaction->setVersion($transaction->getVersion() + 1);
+                    $pendingTransaction->setMerchantReference($orderNr);
+                    $this->apiClient->getTransactionService()->update($this->spaceId, $pendingTransaction);
+                }
+            } else {
+                [$orderNr, $orderNumber] = WalleeHelper::createOrderNo(false);
             }
 
             $order = new \stdClass();
@@ -175,7 +194,8 @@ class WalleeTransactionService
             'orderId' => $orderId,
             'spaceId' => $this->spaceId,
             'orderAfterPayment' => $createOrderAfterPayment,
-            'order_nr' => $orderNr
+            'order_nr' => $orderNr,
+            'order_no' => $orderNumber
         ]);
 
         $pendingTransaction->setMerchantReference($orderNr);
@@ -188,15 +208,12 @@ class WalleeTransactionService
 
         $this->apiClient->getTransactionService()
             ->confirm($this->spaceId, $pendingTransaction);
-
+        
         if ($createOrderAfterPayment === 1) {
-            $number = new Nummern(\JTL_GENNUMBER_ORDERNUMBER);
-            $number->setNummer($orderNumber);
-            $number->update();
             $this->updateLocalWalleeTransaction((string)$transactionId);
         }
     }
-    
+
     /**
      * @param string $orderNr
      * @return array
@@ -204,29 +221,29 @@ class WalleeTransactionService
     protected function getTransactionByOrderReference(string $orderNr): array
     {
         $states = [
-          TransactionState::CONFIRMED,
-          TransactionState::PROCESSING,
-          TransactionState::FULFILL,
+            TransactionState::CONFIRMED,
+            TransactionState::PROCESSING,
+            TransactionState::FULFILL,
         ];
-        
+
         $filters = array_map(function($state) use ($orderNr) {
             return (new EntityQueryFilter())
-              ->setType(EntityQueryFilterType::_AND)
-              ->setChildren([
-                $this->getEntityFilter('state', $state),
-                $this->getEntityFilter('merchantReference', $orderNr),
-              ]);
+                ->setType(EntityQueryFilterType::_AND)
+                ->setChildren([
+                    $this->getEntityFilter('state', $state),
+                    $this->getEntityFilter('merchantReference', $orderNr),
+                ]);
         }, $states);
-        
+
         $entityQueryFilter = (new EntityQueryFilter())
-          ->setType(EntityQueryFilterType::_OR)
-          ->setChildren($filters);
-        
+            ->setType(EntityQueryFilterType::_OR)
+            ->setChildren($filters);
+
         $query = (new EntityQuery())->setFilter($entityQueryFilter);
-        
+
         return $this->apiClient->getTransactionService()->search($this->spaceId, $query);
     }
-    
+
     /**
      * Creates and returns a new entity filter.
      *
@@ -240,10 +257,10 @@ class WalleeTransactionService
     {
         /** @noinspection PhpParamsInspection */
         return (new EntityQueryFilter())
-          ->setType(EntityQueryFilterType::LEAF)
-          ->setOperator($operator)
-          ->setFieldName($fieldName)
-          ->setValue($value);
+            ->setType(EntityQueryFilterType::LEAF)
+            ->setOperator($operator)
+            ->setFieldName($fieldName)
+            ->setValue($value);
     }
 
     /**
@@ -254,28 +271,29 @@ class WalleeTransactionService
     {
         $pendingTransaction = new TransactionPending();
         $transaction = $this->getTransactionFromPortal($transactionId);
-        $failedStates = [
+        $statesToUpdate = [
           TransactionState::DECLINE,
           TransactionState::FAILED,
           TransactionState::VOIDED,
+          TransactionState::PROCESSING
         ];
-        if (empty($transaction) || empty($transaction->getVersion()) || in_array($transaction->getState(), $failedStates)) {
+        if (empty($transaction) || empty($transaction->getVersion()) || in_array($transaction->getState(), $statesToUpdate)) {
           $_SESSION['transactionId'] = null;
           $translations = WalleeHelper::getTranslations($this->plugin->getLocalization(), [
             'jtl_wallee_transaction_timeout',
-          ]);
-          
-          Shop::Container()->getAlertService()->addAlert(
+            ]);
+
+            Shop::Container()->getAlertService()->addAlert(
             Alert::TYPE_ERROR,
             $translations['jtl_wallee_transaction_timeout'],
             'updateTransaction_transaction_timeout'
-          );
-          
-          $linkHelper = Shop::Container()->getLinkService();
-          \header('Location: ' . $linkHelper->getStaticRoute('bestellvorgang.php') . '?editZahlungsart=1');
-          exit;
+            );
+
+            $linkHelper = Shop::Container()->getLinkService();
+            \header('Location: ' . $linkHelper->getStaticRoute('bestellvorgang.php') . '?editZahlungsart=1');
+            exit;
         }
-	    
+
         $pendingTransaction->setId($transactionId);
         $pendingTransaction->setVersion($transaction->getVersion());
 
@@ -375,7 +393,7 @@ class WalleeTransactionService
      * @param string $transactionId
      * @return stdClass|null
      */
-    public function getLocalWalleeTransactionById(string $transactionId): ?stdClass
+    public function getLocalWalleeTransactionById(string $transactionId): ?\stdClass
     {
         return Shop::Container()->getDB()->getSingleObject(
             'SELECT * FROM wallee_transactions WHERE transaction_id = :transaction_id ORDER BY id DESC LIMIT 1',
@@ -506,7 +524,7 @@ class WalleeTransactionService
                 $moduleId = $paymentMethodEntity->cModulId ?? '';
                 $paymentMethod = new Method($moduleId);
                 $paymentMethod->setOrderStatusToPaid($order);
-                $incomingPayment = new stdClass();
+                $incomingPayment = new \stdClass();
                 $incomingPayment->fBetrag = $transaction->getAuthorizationAmount();
                 $incomingPayment->cISO = $transaction->getCurrency();
                 $incomingPayment->cZahlungsanbieter = $order->cZahlungsartName;
@@ -523,13 +541,38 @@ class WalleeTransactionService
     public function createOrderAfterPayment(int $transactionId): int
     {
         $_SESSION['finalize'] = true;
-        
+
         $transaction = $this->getTransactionFromPortal($transactionId);
-        
+
         $orderNr = $transaction->getMetaData()['order_nr'];
         $orderHandler = new OrderHandler(Shop::Container()->getDB(), Frontend::getCustomer(), Frontend::getCart());
         
-        $order = $orderHandler->finalizeOrder($orderNr);
+        if ($this->isPreventFromDuplicatedOrders()) {
+            // We check if order exist with such order nr. If yes, we select it's data, if not - we create it.
+            // This check prevents only in these cases when webhook is triggered more than once or user refresh the page, or
+            // got lost internet connection. It's more like catching edge case
+            $data = Shop::Container()->getDB()->select(
+              'tbestellung',
+              'cBestellNr',
+              $orderNr,
+              null,
+              null,
+              null,
+              null,
+              false,
+              'kBestellung'
+            );
+            if ($data !== null && isset($data->kBestellung)) {
+                $order = new Bestellung((int)$data->kBestellung);
+            } else {
+                $order = $orderHandler->finalizeOrder($orderNr);
+            }
+        } else {
+            // Updates order number for next order. Increase by 1 if is needed
+            $lastOrderNo = $transaction->getMetaData()['order_no'];
+            WalleeHelper::createOrderNo(true, $lastOrderNo);
+            $order = $orderHandler->finalizeOrder($orderNr);
+        }
         $this->updateLocalWalleeTransaction((string)$transactionId, TransactionState::AUTHORIZED, (int)$order->kBestellung);
 
         if ($transaction->getState() === TransactionState::FULFILL) {
@@ -606,10 +649,25 @@ class WalleeTransactionService
         $slug = strtolower(str_replace([' ', '+', '%', '[', ']', '=>'], ['-', '', '', '', '', '-'], $name));
         $slug = preg_replace('/-+/', '-', $slug);
         $slug = trim($slug, '-');
-
+        
         $uniqueName = $productData->cArtNr ?: $slug;
+        $attributes = $productData->WarenkorbPosEigenschaftArr ?? [];
         if ($isDiscount || $productData->nPosTyp === \C_WARENKORBPOS_TYP_GUTSCHEIN) {
             $uniqueName = $uniqueName . '_' . rand(1, 99999);
+        } elseif ($attributes) {
+            foreach ($attributes as $attribute) {
+                if ($attribute->cTyp !== 'TEXT') {
+                    continue;
+                }
+                
+                // If there's custom attribute with type TEXT (for example merchant adds his name to be printed on Jacket)
+                // them this custom text will be slugified and added to unique id
+                // kEigenschaft - mean characteristis, attribute name
+                // kEigenschaftWert - mean characteristis value, attribute value
+                $attributeName = $attribute->kEigenschaft;
+                $attributeValue = $this->slugify((string)$attribute->kEigenschaftWert);
+                $uniqueName .= '_' . $attributeName . '_' . $attributeValue;
+            }
         }
 
         $lineItem->setUniqueId($uniqueName);
@@ -670,6 +728,27 @@ class WalleeTransactionService
 
         return $lineItem;
     }
+    
+    /**
+     * @param string $text
+     * @return string
+     */
+    private function slugify(string $text): string {
+        // Replace non-letter or digits by -
+        $text = preg_replace('~[^\pL\d]+~u', '-', $text);
+        // Transliterate to ASCII
+        $text = iconv('utf-8', 'us-ascii//TRANSLIT', $text);
+        // Remove unwanted characters
+        $text = preg_replace('~[^-\w]+~', '', $text);
+        // Trim
+        $text = trim($text, '-');
+        // Remove duplicate -
+        $text = preg_replace('~-+~', '-', $text);
+        // Lowercase
+        $text = strtolower($text);
+        // Return the slug
+        return !empty($text) ? $text : 'n-a';
+    }
 
     /**
      * @return AddressCreate
@@ -689,24 +768,24 @@ class WalleeTransactionService
         $billingAddress->setPostalState($customer->cBundesland);
         $billingAddress->setOrganizationName($customer->cFirma);
         $billingAddress->setPhoneNumber($customer->cMobil);
-        
+
         $company = $customer->cFirma ?? null;
         if ($company) {
             $billingAddress->setOrganizationName($company);
         }
-        
+
         $mobile = $customer->cMobil ?? null;
         if ($mobile) {
             $billingAddress->setMobilePhoneNumber($mobile);
         }
-        
+
         $phone = $customer->cTel ?? $mobile;
         if ($phone) {
             $billingAddress->setPhoneNumber($phone);
         }
-        
+
         $birthDate = $customer->dGeburtstag_formatted ?? null;
-        if ($birthDate) {
+        if (!empty($birthDate) && strtotime($birthDate) !== false) {
             $birthday = new \DateTime();
             $birthday->setTimestamp(strtotime($birthDate));
             $birthday = $birthday->format('Y-m-d');
@@ -749,6 +828,31 @@ class WalleeTransactionService
         }
 
         return $shippingAddress;
+    }
+    
+    /**
+     * @return bool
+     */
+    private function isPreventFromDuplicatedOrders(): bool
+    {
+        $config = WalleeHelper::getConfigByID($this->plugin->getId());
+        $preventFromDuplicatedOrders = $config[WalleeHelper::PREVENT_FROM_DUPLICATED_ORDERS] ?? null;
+
+        return $preventFromDuplicatedOrders === 'YES';
+    }
+
+    /**
+     * Sends the email for this transaction.
+     *
+     * @param int $orderId
+     *     The order id.
+     * @param string $template
+     *     The template to use. Currently only 'authorization' and 'fulfill' values are supported.
+     */
+    public function sendEmail(int $orderId, string $template) {
+        if (!$this->mailService->isEmailSent($orderId, $template)) {
+            $this->mailService->sendMail($orderId, $template);
+        }
     }
 }
 
