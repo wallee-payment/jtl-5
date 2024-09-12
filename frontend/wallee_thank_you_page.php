@@ -1,6 +1,7 @@
 <?php declare(strict_types=1);
 
 use JTL\Checkout\Bestellung;
+use JTL\Shop;
 use Plugin\jtl_wallee\Services\WalleeTransactionService;
 use Plugin\jtl_wallee\WalleeApiClient;
 
