@@ -490,7 +490,8 @@ class WalleeTransactionService
         $newTransaction->space_id = $this->spaceId;
         $newTransaction->state = TransactionState::PENDING;
         $newTransaction->created_at = date('Y-m-d H:i:s');
-
+        
+        Shop::Container()->getDB()->delete('wallee_transactions', 'transaction_id', $transactionId);
         Shop::Container()->getDB()->insert('wallee_transactions', $newTransaction);
     }
 
@@ -665,7 +666,7 @@ class WalleeTransactionService
             $uniqueName = $uniqueName . '_' . rand(1, 99999);
         } elseif ($attributes) {
             foreach ($attributes as $attribute) {
-                if ($attribute->cTyp !== 'FREIFELD') {
+                if (strpos(strtolower($attribute->cTyp), 'freifeld') === false) {
                     continue;
                 }
                 
