@@ -29,7 +29,7 @@ use \Wallee\Sdk\ObjectSerializer;
  * @category    Class
  * @description 
  * @package     Wallee\Sdk
- * @author      customweb GmbH
+ * @author      wallee AG
  * @license     http://www.apache.org/licenses/LICENSE-2.0 Apache License v2
  */
 class ProductPeriodFeeUpdate implements ModelInterface, ArrayAccess
@@ -52,9 +52,9 @@ class ProductPeriodFeeUpdate implements ModelInterface, ArrayAccess
         'id' => 'int',
         'version' => 'int',
         'component' => 'int',
-        'description' => '\Wallee\Sdk\Model\DatabaseTranslatedStringCreate',
-        'ledger_entry_title' => '\Wallee\Sdk\Model\DatabaseTranslatedStringCreate',
-        'name' => '\Wallee\Sdk\Model\DatabaseTranslatedStringCreate',
+        'description' => 'map[string,string]',
+        'ledger_entry_title' => 'map[string,string]',
+        'name' => 'map[string,string]',
         'number_of_free_trial_periods' => 'int',
         'period_fee' => '\Wallee\Sdk\Model\PersistableCurrencyAmountUpdate[]'
     ];
@@ -318,7 +318,7 @@ class ProductPeriodFeeUpdate implements ModelInterface, ArrayAccess
     /**
      * Sets component
      *
-     * @param int $component 
+     * @param int $component The product component that the fee belongs to.
      *
      * @return $this
      */
@@ -333,7 +333,7 @@ class ProductPeriodFeeUpdate implements ModelInterface, ArrayAccess
     /**
      * Gets description
      *
-     * @return \Wallee\Sdk\Model\DatabaseTranslatedStringCreate
+     * @return map[string,string]
      */
     public function getDescription()
     {
@@ -343,7 +343,7 @@ class ProductPeriodFeeUpdate implements ModelInterface, ArrayAccess
     /**
      * Sets description
      *
-     * @param \Wallee\Sdk\Model\DatabaseTranslatedStringCreate $description The description of a component fee describes the fee to the subscriber. The description may be shown in documents or on certain user interfaces.
+     * @param map[string,string] $description The localized description of the fee that is displayed to the customer.
      *
      * @return $this
      */
@@ -358,7 +358,7 @@ class ProductPeriodFeeUpdate implements ModelInterface, ArrayAccess
     /**
      * Gets ledger_entry_title
      *
-     * @return \Wallee\Sdk\Model\DatabaseTranslatedStringCreate
+     * @return map[string,string]
      */
     public function getLedgerEntryTitle()
     {
@@ -368,7 +368,7 @@ class ProductPeriodFeeUpdate implements ModelInterface, ArrayAccess
     /**
      * Sets ledger_entry_title
      *
-     * @param \Wallee\Sdk\Model\DatabaseTranslatedStringCreate $ledger_entry_title The ledger entry title will be used for the title in the ledger entry and in the invoice.
+     * @param map[string,string] $ledger_entry_title The localized title that be used on ledger entries and invoices.
      *
      * @return $this
      */
@@ -383,7 +383,7 @@ class ProductPeriodFeeUpdate implements ModelInterface, ArrayAccess
     /**
      * Gets name
      *
-     * @return \Wallee\Sdk\Model\DatabaseTranslatedStringCreate
+     * @return map[string,string]
      */
     public function getName()
     {
@@ -393,7 +393,7 @@ class ProductPeriodFeeUpdate implements ModelInterface, ArrayAccess
     /**
      * Sets name
      *
-     * @param \Wallee\Sdk\Model\DatabaseTranslatedStringCreate $name The name of the fee should describe for the subscriber in few words for what the fee is for.
+     * @param map[string,string] $name The localized name of the fee that is displayed to the customer.
      *
      * @return $this
      */
@@ -418,7 +418,7 @@ class ProductPeriodFeeUpdate implements ModelInterface, ArrayAccess
     /**
      * Sets number_of_free_trial_periods
      *
-     * @param int $number_of_free_trial_periods The number of free trial periods specify how many periods are free of charge at the begining of the subscription.
+     * @param int $number_of_free_trial_periods The number of subscription billing cycles that count as a trial phase and during which no fees are charged.
      *
      * @return $this
      */
@@ -443,7 +443,7 @@ class ProductPeriodFeeUpdate implements ModelInterface, ArrayAccess
     /**
      * Sets period_fee
      *
-     * @param \Wallee\Sdk\Model\PersistableCurrencyAmountUpdate[] $period_fee The period fee is charged for every period of the subscription except for those periods which are trial periods.
+     * @param \Wallee\Sdk\Model\PersistableCurrencyAmountUpdate[] $period_fee The amount charged to the customer for each billing cycle during the term of a subscription.
      *
      * @return $this
      */

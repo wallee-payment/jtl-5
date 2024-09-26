@@ -4,20 +4,20 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "30679f70e9babe6331bd8b4e160def9c",
+    "content-hash": "9b5d36182bbab1c53ba797c780390efe",
     "packages": [
         {
             "name": "wallee/sdk",
-            "version": "3.2.0",
+            "version": "4.6.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/wallee-payment/php-sdk.git",
-                "reference": "d9499a9c268ea6623858c0b6e16fc5ee96bac444"
+                "reference": "3883ca421522afe67c91ac73ec379e090e3dd38c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/wallee-payment/php-sdk/zipball/d9499a9c268ea6623858c0b6e16fc5ee96bac444",
-                "reference": "d9499a9c268ea6623858c0b6e16fc5ee96bac444",
+                "url": "https://api.github.com/repos/wallee-payment/php-sdk/zipball/3883ca421522afe67c91ac73ec379e090e3dd38c",
+                "reference": "3883ca421522afe67c91ac73ec379e090e3dd38c",
                 "shasum": ""
             },
             "require": {
@@ -45,7 +45,8 @@
             "authors": [
                 {
                     "name": "wallee AG",
-                    "homepage": "https://wallee.com"
+                    "email": "info@wallee.com",
+                    "homepage": "https://www.wallee.com"
                 }
             ],
             "description": "wallee SDK for PHP",
@@ -58,10 +59,10 @@
                 "wallee"
             ],
             "support": {
-                "source": "https://github.com/wallee-payment/php-sdk/tree/3.2.0",
+                "source": "https://github.com/wallee-payment/php-sdk/tree/4.6.0",
                 "issues": "https://github.com/wallee-payment/php-sdk/issues"
             },
-            "time": "2023-02-24T14:12:44+00:00"
+            "time": "2024-09-04T09:20:37+00:00"
         }
     ],
     "packages-dev": [],

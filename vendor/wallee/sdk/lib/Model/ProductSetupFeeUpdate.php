@@ -29,7 +29,7 @@ use \Wallee\Sdk\ObjectSerializer;
  * @category    Class
  * @description 
  * @package     Wallee\Sdk
- * @author      customweb GmbH
+ * @author      wallee AG
  * @license     http://www.apache.org/licenses/LICENSE-2.0 Apache License v2
  */
 class ProductSetupFeeUpdate implements ModelInterface, ArrayAccess
@@ -52,8 +52,8 @@ class ProductSetupFeeUpdate implements ModelInterface, ArrayAccess
         'id' => 'int',
         'version' => 'int',
         'component' => 'int',
-        'description' => '\Wallee\Sdk\Model\DatabaseTranslatedStringCreate',
-        'name' => '\Wallee\Sdk\Model\DatabaseTranslatedStringCreate',
+        'description' => 'map[string,string]',
+        'name' => 'map[string,string]',
         'on_downgrade_credited_amount' => '\Wallee\Sdk\Model\PersistableCurrencyAmountUpdate[]',
         'on_upgrade_credited_amount' => '\Wallee\Sdk\Model\PersistableCurrencyAmountUpdate[]',
         'setup_fee' => '\Wallee\Sdk\Model\PersistableCurrencyAmountUpdate[]'
@@ -318,7 +318,7 @@ class ProductSetupFeeUpdate implements ModelInterface, ArrayAccess
     /**
      * Sets component
      *
-     * @param int $component 
+     * @param int $component The product component that the fee belongs to.
      *
      * @return $this
      */
@@ -333,7 +333,7 @@ class ProductSetupFeeUpdate implements ModelInterface, ArrayAccess
     /**
      * Gets description
      *
-     * @return \Wallee\Sdk\Model\DatabaseTranslatedStringCreate
+     * @return map[string,string]
      */
     public function getDescription()
     {
@@ -343,7 +343,7 @@ class ProductSetupFeeUpdate implements ModelInterface, ArrayAccess
     /**
      * Sets description
      *
-     * @param \Wallee\Sdk\Model\DatabaseTranslatedStringCreate $description The description of a component fee describes the fee to the subscriber. The description may be shown in documents or on certain user interfaces.
+     * @param map[string,string] $description The localized description of the fee that is displayed to the customer.
      *
      * @return $this
      */
@@ -358,7 +358,7 @@ class ProductSetupFeeUpdate implements ModelInterface, ArrayAccess
     /**
      * Gets name
      *
-     * @return \Wallee\Sdk\Model\DatabaseTranslatedStringCreate
+     * @return map[string,string]
      */
     public function getName()
     {
@@ -368,7 +368,7 @@ class ProductSetupFeeUpdate implements ModelInterface, ArrayAccess
     /**
      * Sets name
      *
-     * @param \Wallee\Sdk\Model\DatabaseTranslatedStringCreate $name The name of the fee should describe for the subscriber in few words for what the fee is for.
+     * @param map[string,string] $name The localized name of the fee that is displayed to the customer.
      *
      * @return $this
      */
@@ -393,7 +393,7 @@ class ProductSetupFeeUpdate implements ModelInterface, ArrayAccess
     /**
      * Sets on_downgrade_credited_amount
      *
-     * @param \Wallee\Sdk\Model\PersistableCurrencyAmountUpdate[] $on_downgrade_credited_amount When the subscription is changed and the change is considered as a downgrade the amount defined by this property will be credited to the subscriber.
+     * @param \Wallee\Sdk\Model\PersistableCurrencyAmountUpdate[] $on_downgrade_credited_amount The amount charged to the customer when a subscription is downgraded.
      *
      * @return $this
      */
@@ -418,7 +418,7 @@ class ProductSetupFeeUpdate implements ModelInterface, ArrayAccess
     /**
      * Sets on_upgrade_credited_amount
      *
-     * @param \Wallee\Sdk\Model\PersistableCurrencyAmountUpdate[] $on_upgrade_credited_amount When the subscription is changed and the change is considered as a upgrade the amount defined by this property will be credited to the subscriber.
+     * @param \Wallee\Sdk\Model\PersistableCurrencyAmountUpdate[] $on_upgrade_credited_amount The amount charged to the customer when a subscription is upgraded.
      *
      * @return $this
      */
@@ -443,7 +443,7 @@ class ProductSetupFeeUpdate implements ModelInterface, ArrayAccess
     /**
      * Sets setup_fee
      *
-     * @param \Wallee\Sdk\Model\PersistableCurrencyAmountUpdate[] $setup_fee The setup fee is charged when the subscriber subscribes to this component. The setup fee is debited with the first charge for the subscriptions.
+     * @param \Wallee\Sdk\Model\PersistableCurrencyAmountUpdate[] $setup_fee The amount charged to the customer once when they subscribe to a subscription.
      *
      * @return $this
      */

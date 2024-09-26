@@ -29,7 +29,7 @@ use \Wallee\Sdk\ObjectSerializer;
  * @category    Class
  * @description The subscription metric type identifies the type of the metric.
  * @package     Wallee\Sdk
- * @author      customweb GmbH
+ * @author      wallee AG
  * @license     http://www.apache.org/licenses/LICENSE-2.0 Apache License v2
  */
 class SubscriptionMetricType implements ModelInterface, ArrayAccess
@@ -50,7 +50,7 @@ class SubscriptionMetricType implements ModelInterface, ArrayAccess
       */
     protected static $swaggerTypes = [
         'description' => 'map[string,string]',
-        'feature' => '\Wallee\Sdk\Model\Feature',
+        'feature' => 'int',
         'id' => 'int',
         'name' => 'map[string,string]'
     ];
@@ -62,7 +62,7 @@ class SubscriptionMetricType implements ModelInterface, ArrayAccess
       */
     protected static $swaggerFormats = [
         'description' => null,
-        'feature' => null,
+        'feature' => 'int64',
         'id' => 'int64',
         'name' => null
     ];
@@ -234,7 +234,7 @@ class SubscriptionMetricType implements ModelInterface, ArrayAccess
     /**
      * Sets description
      *
-     * @param map[string,string] $description The description of the object translated into different languages.
+     * @param map[string,string] $description The localized description of the object.
      *
      * @return $this
      */
@@ -249,7 +249,7 @@ class SubscriptionMetricType implements ModelInterface, ArrayAccess
     /**
      * Gets feature
      *
-     * @return \Wallee\Sdk\Model\Feature
+     * @return int
      */
     public function getFeature()
     {
@@ -259,7 +259,7 @@ class SubscriptionMetricType implements ModelInterface, ArrayAccess
     /**
      * Sets feature
      *
-     * @param \Wallee\Sdk\Model\Feature $feature 
+     * @param int $feature 
      *
      * @return $this
      */
@@ -309,7 +309,7 @@ class SubscriptionMetricType implements ModelInterface, ArrayAccess
     /**
      * Sets name
      *
-     * @param map[string,string] $name The name of the object translated into different languages.
+     * @param map[string,string] $name The localized name of the object.
      *
      * @return $this
      */

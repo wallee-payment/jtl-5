@@ -4,19 +4,12 @@ namespace Plugin\jtl_wallee\Webhooks\Strategies;
 
 use JTL\Checkout\Bestellung;
 use JTL\Checkout\Zahlungsart;
-use JTL\Customer\Customer;
-use JTL\Mail\Mail\Mail;
-use JTL\Mail\Mailer;
-use JTL\Plugin\Data\PaymentMethod;
 use JTL\Plugin\Payment\Method;
 use JTL\Plugin\Plugin;
-use JTL\Session\Frontend;
 use JTL\Shop;
 use Plugin\jtl_wallee\Services\WalleeOrderService;
 use Plugin\jtl_wallee\Services\WalleeTransactionService;
 use Plugin\jtl_wallee\Webhooks\Strategies\Interfaces\WalleeOrderUpdateStrategyInterface;
-use Plugin\jtl_wallee\WalleeHelper;
-use stdClass;
 use Wallee\Sdk\Model\Transaction;
 use Wallee\Sdk\Model\TransactionState;
 
@@ -52,11 +45,12 @@ class WalleeNameOrderUpdateTransactionStrategy implements WalleeOrderUpdateStrat
     {
         $transaction = $this->transactionService->getTransactionFromPortal($entityId);
         $transactionId = $transaction->getId();
-
-        $localTransaction = $this->transactionService->getLocalWalleeTransactionById((string)$transactionId);
-        $orderId = (int)$localTransaction->order_id;
+        
+        $orderNr = $transaction->getMetaData()['order_nr'];
+        $orderData = $this->transactionService->getOrderIfExists($orderNr);
+        $orderId = (int)$orderData->kBestellung;
         $transactionState = $transaction->getState();
-
+    
         switch ($transactionState) {
             case TransactionState::FULFILL:
                 $order = new Bestellung($orderId);

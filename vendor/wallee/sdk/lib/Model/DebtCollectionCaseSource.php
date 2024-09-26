@@ -27,9 +27,9 @@ use \Wallee\Sdk\ObjectSerializer;
  * DebtCollectionCaseSource model
  *
  * @category    Class
- * @description The debt collection case source represents the origin of the case. It allows to understand from where the amount receivable is coming from.
+ * @description The debt collection case source represents the origin of the case. It allows to understand where the amount receivable is coming from.
  * @package     Wallee\Sdk
- * @author      customweb GmbH
+ * @author      wallee AG
  * @license     http://www.apache.org/licenses/LICENSE-2.0 Apache License v2
  */
 class DebtCollectionCaseSource implements ModelInterface, ArrayAccess
@@ -234,7 +234,7 @@ class DebtCollectionCaseSource implements ModelInterface, ArrayAccess
     /**
      * Sets description
      *
-     * @param map[string,string] $description The description of the object translated into different languages.
+     * @param map[string,string] $description The localized description of the object.
      *
      * @return $this
      */
@@ -259,7 +259,7 @@ class DebtCollectionCaseSource implements ModelInterface, ArrayAccess
     /**
      * Sets forced_preparing_state
      *
-     * @param bool $forced_preparing_state 
+     * @param bool $forced_preparing_state Whether debt collection cases created from this source will skip review and directly enter preparing state.
      *
      * @return $this
      */
@@ -309,7 +309,7 @@ class DebtCollectionCaseSource implements ModelInterface, ArrayAccess
     /**
      * Sets name
      *
-     * @param map[string,string] $name The name of the object translated into different languages.
+     * @param map[string,string] $name The localized name of the object.
      *
      * @return $this
      */

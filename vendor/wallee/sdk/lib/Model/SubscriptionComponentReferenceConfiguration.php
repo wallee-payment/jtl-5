@@ -29,7 +29,7 @@ use \Wallee\Sdk\ObjectSerializer;
  * @category    Class
  * @description The component reference configuration adjusts the product component for a particular subscription.
  * @package     Wallee\Sdk
- * @author      customweb GmbH
+ * @author      wallee AG
  * @license     http://www.apache.org/licenses/LICENSE-2.0 Apache License v2
  */
 class SubscriptionComponentReferenceConfiguration implements ModelInterface, ArrayAccess
@@ -220,7 +220,7 @@ class SubscriptionComponentReferenceConfiguration implements ModelInterface, Arr
     /**
      * Sets product_component_reference_id
      *
-     * @param int $product_component_reference_id 
+     * @param int $product_component_reference_id The ID of the component reference that is being configured.
      *
      * @return $this
      */
@@ -245,7 +245,7 @@ class SubscriptionComponentReferenceConfiguration implements ModelInterface, Arr
     /**
      * Sets quantity
      *
-     * @param float $quantity 
+     * @param float $quantity The quantity that should be applied to the component.
      *
      * @return $this
      */

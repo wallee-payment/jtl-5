@@ -27,9 +27,9 @@ use \Wallee\Sdk\ObjectSerializer;
  * DebtCollector model
  *
  * @category    Class
- * @description The debt collector connects to an external service to process the debt collection case and as such directs the debt collection process.
+ * @description The debt collector connects to an external service to process debt collection cases and directs the debt collection process.
  * @package     Wallee\Sdk
- * @author      customweb GmbH
+ * @author      wallee AG
  * @license     http://www.apache.org/licenses/LICENSE-2.0 Apache License v2
  */
 class DebtCollector implements ModelInterface, ArrayAccess
@@ -227,7 +227,7 @@ class DebtCollector implements ModelInterface, ArrayAccess
     /**
      * Sets description
      *
-     * @param map[string,string] $description The description of the object translated into different languages.
+     * @param map[string,string] $description The localized description of the object.
      *
      * @return $this
      */
@@ -277,7 +277,7 @@ class DebtCollector implements ModelInterface, ArrayAccess
     /**
      * Sets name
      *
-     * @param map[string,string] $name The name of the object translated into different languages.
+     * @param map[string,string] $name The localized name of the object.
      *
      * @return $this
      */

@@ -29,7 +29,7 @@ use \Wallee\Sdk\ObjectSerializer;
  * @category    Class
  * @description 
  * @package     Wallee\Sdk
- * @author      customweb GmbH
+ * @author      wallee AG
  * @license     http://www.apache.org/licenses/LICENSE-2.0 Apache License v2
  */
 class ProductMeteredFee implements ModelInterface, ArrayAccess
@@ -50,11 +50,11 @@ class ProductMeteredFee implements ModelInterface, ArrayAccess
       */
     protected static $swaggerTypes = [
         'component' => '\Wallee\Sdk\Model\SubscriptionProductComponent',
-        'description' => '\Wallee\Sdk\Model\DatabaseTranslatedString',
+        'description' => 'map[string,string]',
         'id' => 'int',
         'linked_space_id' => 'int',
         'metric' => '\Wallee\Sdk\Model\SubscriptionMetric',
-        'name' => '\Wallee\Sdk\Model\DatabaseTranslatedString',
+        'name' => 'map[string,string]',
         'tier_pricing' => '\Wallee\Sdk\Model\ProductMeteredTierPricing',
         'type' => '\Wallee\Sdk\Model\ProductFeeType',
         'version' => 'int'
@@ -269,7 +269,7 @@ class ProductMeteredFee implements ModelInterface, ArrayAccess
     /**
      * Sets component
      *
-     * @param \Wallee\Sdk\Model\SubscriptionProductComponent $component 
+     * @param \Wallee\Sdk\Model\SubscriptionProductComponent $component The product component that the fee belongs to.
      *
      * @return $this
      */
@@ -284,7 +284,7 @@ class ProductMeteredFee implements ModelInterface, ArrayAccess
     /**
      * Gets description
      *
-     * @return \Wallee\Sdk\Model\DatabaseTranslatedString
+     * @return map[string,string]
      */
     public function getDescription()
     {
@@ -294,7 +294,7 @@ class ProductMeteredFee implements ModelInterface, ArrayAccess
     /**
      * Sets description
      *
-     * @param \Wallee\Sdk\Model\DatabaseTranslatedString $description The description of a component fee describes the fee to the subscriber. The description may be shown in documents or on certain user interfaces.
+     * @param map[string,string] $description The localized description of the fee that is displayed to the customer.
      *
      * @return $this
      */
@@ -369,7 +369,7 @@ class ProductMeteredFee implements ModelInterface, ArrayAccess
     /**
      * Sets metric
      *
-     * @param \Wallee\Sdk\Model\SubscriptionMetric $metric 
+     * @param \Wallee\Sdk\Model\SubscriptionMetric $metric The metric used to determine the resource consumption billed to the customer.
      *
      * @return $this
      */
@@ -384,7 +384,7 @@ class ProductMeteredFee implements ModelInterface, ArrayAccess
     /**
      * Gets name
      *
-     * @return \Wallee\Sdk\Model\DatabaseTranslatedString
+     * @return map[string,string]
      */
     public function getName()
     {
@@ -394,7 +394,7 @@ class ProductMeteredFee implements ModelInterface, ArrayAccess
     /**
      * Sets name
      *
-     * @param \Wallee\Sdk\Model\DatabaseTranslatedString $name The name of the fee should describe for the subscriber in few words for what the fee is for.
+     * @param map[string,string] $name The localized name of the fee that is displayed to the customer.
      *
      * @return $this
      */
@@ -419,7 +419,7 @@ class ProductMeteredFee implements ModelInterface, ArrayAccess
     /**
      * Sets tier_pricing
      *
-     * @param \Wallee\Sdk\Model\ProductMeteredTierPricing $tier_pricing The tier pricing determines the calculation method of the tiers. The prices of the different tiers can be applied in different ways. The tier pricing controls this calculation.
+     * @param \Wallee\Sdk\Model\ProductMeteredTierPricing $tier_pricing The method used to calculate the tier price.
      *
      * @return $this
      */
@@ -444,7 +444,7 @@ class ProductMeteredFee implements ModelInterface, ArrayAccess
     /**
      * Sets type
      *
-     * @param \Wallee\Sdk\Model\ProductFeeType $type 
+     * @param \Wallee\Sdk\Model\ProductFeeType $type The type of the fee.
      *
      * @return $this
      */

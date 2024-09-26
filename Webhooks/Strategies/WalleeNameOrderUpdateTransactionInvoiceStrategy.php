@@ -2,6 +2,7 @@
 
 namespace Plugin\jtl_wallee\Webhooks\Strategies;
 
+use JTL\Shop;
 use Plugin\jtl_wallee\Services\WalleeOrderService;
 use Plugin\jtl_wallee\Services\WalleeTransactionService;
 use Plugin\jtl_wallee\Webhooks\Strategies\Interfaces\WalleeOrderUpdateStrategyInterface;
@@ -39,8 +40,9 @@ class WalleeNameOrderUpdateTransactionInvoiceStrategy implements WalleeOrderUpda
             ->getTransaction();
 
         $transactionId = $transaction->getId();
-        $localTransaction = $this->transactionService->getLocalWalleeTransactionById((string)$transactionId);
-        $orderId = (int)$localTransaction->order_id;
+        $orderNr = $transaction->getMetaData()['order_nr'];
+        $orderData = $this->transactionService->getOrderIfExists($orderNr);
+        $orderId = (int)$orderData->kBestellung;
 
         switch ($transactionInvoice->getState()) {
             case TransactionInvoiceState::DERECOGNIZED:

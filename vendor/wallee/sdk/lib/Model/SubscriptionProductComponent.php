@@ -29,7 +29,7 @@ use \Wallee\Sdk\ObjectSerializer;
  * @category    Class
  * @description 
  * @package     Wallee\Sdk
- * @author      customweb GmbH
+ * @author      wallee AG
  * @license     http://www.apache.org/licenses/LICENSE-2.0 Apache License v2
  */
 class SubscriptionProductComponent implements ModelInterface, ArrayAccess
@@ -52,12 +52,12 @@ class SubscriptionProductComponent implements ModelInterface, ArrayAccess
         'component_change_weight' => 'int',
         'component_group' => '\Wallee\Sdk\Model\SubscriptionProductComponentGroup',
         'default_component' => 'bool',
-        'description' => '\Wallee\Sdk\Model\DatabaseTranslatedString',
+        'description' => 'map[string,string]',
         'id' => 'int',
         'linked_space_id' => 'int',
         'maximal_quantity' => 'float',
         'minimal_quantity' => 'float',
-        'name' => '\Wallee\Sdk\Model\DatabaseTranslatedString',
+        'name' => 'map[string,string]',
         'quantity_step' => 'float',
         'reference' => '\Wallee\Sdk\Model\SubscriptionProductComponentReference',
         'sort_order' => 'int',
@@ -304,7 +304,7 @@ class SubscriptionProductComponent implements ModelInterface, ArrayAccess
     /**
      * Sets component_change_weight
      *
-     * @param int $component_change_weight If a product component changes from one with a lower product component tier (e.g. 1) to one with a higher product component tier (e.g. 3), it is considered an upgrade and a one-time fee could be applied.
+     * @param int $component_change_weight If switching from a component with a lower tier to a component with a higher one, this is considered an upgrade and a fee may be applied.
      *
      * @return $this
      */
@@ -329,7 +329,7 @@ class SubscriptionProductComponent implements ModelInterface, ArrayAccess
     /**
      * Sets component_group
      *
-     * @param \Wallee\Sdk\Model\SubscriptionProductComponentGroup $component_group 
+     * @param \Wallee\Sdk\Model\SubscriptionProductComponentGroup $component_group The group that the component belongs to.
      *
      * @return $this
      */
@@ -354,7 +354,7 @@ class SubscriptionProductComponent implements ModelInterface, ArrayAccess
     /**
      * Sets default_component
      *
-     * @param bool $default_component When a component is marked as a 'default' component it is used as the default component in its group and will be preselected in the product configuration.
+     * @param bool $default_component Whether this is the default component in its group and preselected.
      *
      * @return $this
      */
@@ -369,7 +369,7 @@ class SubscriptionProductComponent implements ModelInterface, ArrayAccess
     /**
      * Gets description
      *
-     * @return \Wallee\Sdk\Model\DatabaseTranslatedString
+     * @return map[string,string]
      */
     public function getDescription()
     {
@@ -379,7 +379,7 @@ class SubscriptionProductComponent implements ModelInterface, ArrayAccess
     /**
      * Sets description
      *
-     * @param \Wallee\Sdk\Model\DatabaseTranslatedString $description The component description may contain a longer description which gives the subscriber a better understanding of what the component contains.
+     * @param map[string,string] $description The localized description of the component that is displayed to the customer.
      *
      * @return $this
      */
@@ -454,7 +454,7 @@ class SubscriptionProductComponent implements ModelInterface, ArrayAccess
     /**
      * Sets maximal_quantity
      *
-     * @param float $maximal_quantity The maximum quantity defines the maximum value which must be entered for the quantity.
+     * @param float $maximal_quantity A maximum of the defined quantity can be selected for this component.
      *
      * @return $this
      */
@@ -479,7 +479,7 @@ class SubscriptionProductComponent implements ModelInterface, ArrayAccess
     /**
      * Sets minimal_quantity
      *
-     * @param float $minimal_quantity The minimal quantity defines the minimum value which must be entered for the quantity.
+     * @param float $minimal_quantity A minimum of the defined quantity must be selected for this component.
      *
      * @return $this
      */
@@ -494,7 +494,7 @@ class SubscriptionProductComponent implements ModelInterface, ArrayAccess
     /**
      * Gets name
      *
-     * @return \Wallee\Sdk\Model\DatabaseTranslatedString
+     * @return map[string,string]
      */
     public function getName()
     {
@@ -504,7 +504,7 @@ class SubscriptionProductComponent implements ModelInterface, ArrayAccess
     /**
      * Sets name
      *
-     * @param \Wallee\Sdk\Model\DatabaseTranslatedString $name The component name is shown to the subscriber. It should describe in few words what the component does contain.
+     * @param map[string,string] $name The localized name of the component that is displayed to the customer.
      *
      * @return $this
      */
@@ -529,7 +529,7 @@ class SubscriptionProductComponent implements ModelInterface, ArrayAccess
     /**
      * Sets quantity_step
      *
-     * @param float $quantity_step The quantity step defines at which interval the quantity can be increased.
+     * @param float $quantity_step The quantity step determines the interval in which the quantity can be increased.
      *
      * @return $this
      */
@@ -554,7 +554,7 @@ class SubscriptionProductComponent implements ModelInterface, ArrayAccess
     /**
      * Sets reference
      *
-     * @param \Wallee\Sdk\Model\SubscriptionProductComponentReference $reference The component reference is used to identify the component by external systems and it marks components to represent the same component within different product versions.
+     * @param \Wallee\Sdk\Model\SubscriptionProductComponentReference $reference The reference is used to link components across different product versions.
      *
      * @return $this
      */
@@ -579,7 +579,7 @@ class SubscriptionProductComponent implements ModelInterface, ArrayAccess
     /**
      * Sets sort_order
      *
-     * @param int $sort_order The sort order controls in which order the component is listed. The sort order is used to order the components in ascending order.
+     * @param int $sort_order When listing components, they can be sorted by this number.
      *
      * @return $this
      */
@@ -604,7 +604,7 @@ class SubscriptionProductComponent implements ModelInterface, ArrayAccess
     /**
      * Sets tax_class
      *
-     * @param \Wallee\Sdk\Model\TaxClass $tax_class The tax class of the component determines the taxes which are applicable on all fees linked with the component.
+     * @param \Wallee\Sdk\Model\TaxClass $tax_class The tax class to be applied to fees.
      *
      * @return $this
      */
