@@ -47,8 +47,18 @@ class WalleeNameOrderUpdateTransactionStrategy implements WalleeOrderUpdateStrat
         $transactionId = $transaction->getId();
         
         $orderNr = $transaction->getMetaData()['order_nr'];
-        $orderData = $this->transactionService->getOrderIfExists($orderNr);
-        $orderId = (int)$orderData->kBestellung;
+        if ($orderNr === null) {
+            $localTransaction = $this->transactionService->getLocalWalleeTransactionById((string)$transactionId);
+            $orderId = (int)$localTransaction->order_id;
+        } else {
+            $orderData = $this->transactionService->getOrderIfExists($orderNr);
+            if ($orderData === null) {
+                Shop::Container()->getLogService()->error('Order was not found by nr: ' . $orderNr);
+                return;
+            }
+            $orderId = (int)$orderData->kBestellung;
+        }
+
         $transactionState = $transaction->getState();
     
         switch ($transactionState) {
