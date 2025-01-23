@@ -33,8 +33,8 @@
             'total_amount':'{$order['total_amount']}',
             'order_id':'{$order['orderDetails']->kBestellung}',
             'order_no':'{$order['orderDetails']->cBestellNr}',
-            'transaction_id': '{$order['postfinancecheckout_transaction_id']}',
-            'transaction_state': '{$order['postfinancecheckout_state']}',
+            'transaction_id': '{$order['wallee_transaction_id']}',
+            'transaction_state': '{$order['wallee_state']}',
             'action': 'order_details'
             })">
             <a href="#order-datails">

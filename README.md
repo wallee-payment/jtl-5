@@ -1,6 +1,6 @@
 
 
-Wallee Payment for JTL 5.2
+Wallee Payment for JTL 5.2 and 5.3
 =============================
 
 The Wallee Payment plugin wraps around the Wallee API. This library facilitates your interaction with various services such as transactions.
@@ -8,7 +8,7 @@ The Wallee Payment plugin wraps around the Wallee API. This library facilitates 
 ## Requirements
 
 - PHP 8.1
-- JTL 5.2
+- JTL 5.2.x, 5.3.x
 
 ## Installation
 
@@ -36,7 +36,7 @@ account dashboard.
 
 ## Documentation
 
-[Documentation](https://plugin-documentation.wallee.com/wallee-payment/jtl-5/1.0.34/docs/en/documentation.html)
+[Documentation](https://plugin-documentation.wallee.com/wallee-payment/jtl-5/1.0.35-beta/docs/en/documentation.html)
 
 ## License
 

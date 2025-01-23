@@ -2,14 +2,16 @@
 
 namespace Plugin\jtl_wallee\Webhooks\Strategies;
 
+use JTL\Catalog\Product\Artikel;
+use JTL\Checkout\StockUpdater;
+use JTL\Helpers\Product;
+use JTL\Session\Frontend;
+use JTL\Shop;
 use Plugin\jtl_wallee\Services\WalleeOrderService;
 use Plugin\jtl_wallee\Services\WalleeRefundService;
 use Plugin\jtl_wallee\Services\WalleeTransactionService;
 use Plugin\jtl_wallee\Webhooks\Strategies\Interfaces\WalleeOrderUpdateStrategyInterface;
 use Wallee\Sdk\Model\TransactionState;
-use JTL\Catalog\Product\Artikel;
-use JTL\Checkout\StockUpdater;
-use JTL\Helpers\Product;
 
 class WalleeNameOrderUpdateRefundStrategy implements WalleeOrderUpdateStrategyInterface
 {
@@ -40,11 +42,7 @@ class WalleeNameOrderUpdateRefundStrategy implements WalleeOrderUpdateStrategyIn
         $this->refundService = $refundService;
         $this->transactionService = $transactionService;
         $this->orderService = new WalleeOrderService();
-
-        if (!function_exists('getStockUpdater')) {
-            require_once \PFAD_ROOT . \PFAD_INCLUDES . 'bestellabschluss_inc.php';
-        }
-        $this->stockUpdater = getStockUpdater();
+        $this->stockUpdater = new StockUpdater(Shop::Container()->getDB(), Frontend::getCustomer(), Frontend::getCart());
     }
 
     /**
@@ -71,7 +69,6 @@ class WalleeNameOrderUpdateRefundStrategy implements WalleeOrderUpdateStrategyIn
 
         // Restores the stock of the refunded product.
         $reductions = $refund->getReductions();
-        $quantity = 0;
         if (count($reductions) > 0) {
             foreach ($reductions as $reduction) {
                 $quantity = $reduction->getQuantityReduction();
@@ -89,8 +86,6 @@ class WalleeNameOrderUpdateRefundStrategy implements WalleeOrderUpdateStrategyIn
                         }
                     }
                 }
-
-                $quantity = 0;
             }
         }
 
