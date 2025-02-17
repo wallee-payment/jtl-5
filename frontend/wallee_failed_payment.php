@@ -1,6 +1,7 @@
 <?php declare(strict_types=1);
 
 use JTL\Shop;
+use JTL\Alert\Alert;
 use Plugin\jtl_wallee\Services\WalleeTransactionService;
 use Plugin\jtl_wallee\WalleeApiClient;
 use Plugin\jtl_wallee\WalleeHelper;
