@@ -8,61 +8,21 @@ use Plugin\jtl_wallee\WalleeApiClient;
 /** @global \JTL\Smarty\JTLSmarty $smarty */
 /** @global JTL\Plugin\PluginInterface $plugin */
 
-
-function getTransactionWithRetry($transactionService, $transactionId, $maxRetries = 5, $delaySeconds = 1) {
-    $attempt = 0;
-    while ($attempt < $maxRetries) {
-        try {
-            $transaction = $transactionService->getTransactionFromPortal($transactionId);
-            if ($transaction !== null) {
-                return $transaction;
-            }
-        } catch (Exception $e) {
-            Shop::Container()->getLogService()->notice(
-                "Attempt #$attempt to get transaction was unsuccessful: " . $e->getMessage()
-            );
-        }
-
-        $attempt++;
-        sleep($delaySeconds);
-    }
-
-    Shop::Container()->getLogService()->notice(
-        "Transaction was not fetched after $maxRetries attempts."
-    );
-    return null;
-}
-
 $transactionId = (int)$_GET['tID'] ?? null;
-
 if ($transactionId) {
     $apiClient = new WalleeApiClient($plugin->getId());
     $transactionService = new WalleeTransactionService($apiClient->getApiClient(), $plugin);
 
     // In case error from api, we will try to fetch transaction again
-    $transaction = getTransactionWithRetry($transactionService, $transactionId);
+    $transaction = $transactionService->getTransactionFromPortal($transactionId);
 	Shop::Container()->getLogService()->notice(
 	  "Transaction found. Starting to create order."
 	);
     $createAfterPayment = (int)$transaction->getMetaData()['orderAfterPayment'] ?? 1;
     if ($createAfterPayment) {
-		Shop::Container()->getLogService()->notice(
-		  "Creating order after payment for transaction {$transactionId}."
-		);
-        $orderNr = $transaction->getMetaData()['order_nr'];
-        $data = $transactionService->getOrderIfExists($orderNr);
-        if ($data === null) {
-            $orderId = $transactionService->createOrderAfterPayment($transactionId);
-            $transactionService->waitUntilOrderIsCreated($transaction);
-            Shop::Container()->getLogService()->notice(
-                "New order has been created. OrderId: {$orderId}. TransactionID: {$transactionId}"
-            );
-        } else {
-            $orderId = (int)$data->kBestellung;
-            Shop::Container()->getLogService()->notice(
-                "Order was not created, because it was found in DB {$orderId}"
-            );
-        }
+        $orderId = (int)$transaction->getMetaData()['orderId'];
+        $order = new Bestellung($orderId);
+        $orderId = (int)$order->kBestellung;
     } else {
 		Shop::Container()->getLogService()->notice(
 		  "Order was not created. We created it previously and returning the ID."

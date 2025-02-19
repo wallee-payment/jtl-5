@@ -5,7 +5,6 @@ use JTL\Alert\Alert;
 use Plugin\jtl_wallee\Services\WalleeTransactionService;
 use Plugin\jtl_wallee\WalleeApiClient;
 use Plugin\jtl_wallee\WalleeHelper;
-use JTL\Alert\Alert;
 
 /** @global \JTL\Smarty\JTLSmarty $smarty */
 /** @global JTL\Plugin\PluginInterface $plugin */
