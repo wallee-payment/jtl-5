@@ -1,9 +1,9 @@
 
 
-Wallee Payment for JTL 5.2 and 5.3
+wallee integration for JTL 5.2 and 5.3
 =============================
 
-The Wallee Payment plugin wraps around the Wallee API. This library facilitates your interaction with various services such as transactions.
+The wallee plugin wraps around the wallee API. This library facilitates your interaction with various services such as transactions.
 
 ## Requirements
 
@@ -27,16 +27,16 @@ The Wallee Payment plugin wraps around the Wallee API. This library facilitates 
 
 5. After installation click on Settings "gear" icon
 
-6. Enter correct data from Wallee API and click Save. Payment methods will be synchronised and enabled
+6. Enter correct data from wallee API and click Save. Payment methods will be synchronised and enabled
 
 
 ## Usage
-The library needs to be configured with your account's space id, user id, and application key which are available in your Wallee
+The library needs to be configured with your account's space id, user id, and application key which are available in your wallee
 account dashboard.
 
 ## Documentation
 
-[Documentation](https://plugin-documentation.wallee.com/wallee-payment/jtl-5/1.0.35/docs/en/documentation.html)
+[Documentation](https://plugin-documentation.wallee.com/wallee-payment/jtl-5/1.0.36/docs/en/documentation.html)
 
 ## License
 
