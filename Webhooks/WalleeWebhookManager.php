@@ -14,7 +14,7 @@ use Plugin\jtl_wallee\Webhooks\Strategies\WalleeNameOrderUpdateTransactionStrate
 use Plugin\jtl_wallee\WalleeApiClient;
 use Plugin\jtl_wallee\WalleeHelper;
 use Wallee\Sdk\ApiClient;
-use Wallee\Sdk\Model\{TransactionInvoiceState, TransactionState};
+use Wallee\Sdk\Model\{Transaction, TransactionState};
 
 /**
  * Class WalleeWebhookManager
@@ -22,6 +22,11 @@ use Wallee\Sdk\Model\{TransactionInvoiceState, TransactionState};
  */
 class WalleeWebhookManager
 {
+    private const AUTHORIZED_STATES = [
+        TransactionState::AUTHORIZED,
+        TransactionState::FULFILL,
+    ];
+
     /**
      * @var array $data
      */
@@ -89,9 +94,11 @@ class WalleeWebhookManager
             case WalleeHelper::TRANSACTION:
                 $orderUpdater->updateOrderStatus($entityId);
                 $transactionStateFromWebhook = $this?->data['state'] ?? null;
-                if ($transactionStateFromWebhook === TransactionState::AUTHORIZED) {
-                    $transaction = $this->transactionService->getTransactionFromPortal($entityId);
-                    $orderId = (int)$transaction->getMetaData()['orderId'];
+
+                $transaction = $this->transactionService->getTransactionFromPortal($entityId);
+                $orderId = (int)$transaction->getMetaData()['orderId'] ?? null;
+
+                if ($this->shouldSendAuthorizationEmail($transactionStateFromWebhook, $transaction, $orderId)) {
                     $this->transactionService->sendEmail($orderId, 'authorization');
                 }
                 break;
@@ -112,5 +119,27 @@ class WalleeWebhookManager
                 break;
         }
     }
+
+    /**
+     * Determines if the authorization email should be sent based on webhook state and transaction state.
+     *
+     * @param string|null $webhookState The state from webhook payload, or null if payload validation is disabled.
+     * @param Transaction $transaction The transaction object.
+     * @param int|null $orderId The associated order ID.
+     * @return bool True if email should be sent, otherwise false.
+     */
+    private function shouldSendAuthorizationEmail(?string $webhookState, Transaction $transaction, ?int $orderId): bool
+    {
+        if ($orderId === null) {
+            return false;
+        }
+
+        if ($webhookState === null) {
+            return in_array($transaction->getState(), self::AUTHORIZED_STATES, true);
+        }
+
+        return $webhookState === TransactionState::AUTHORIZED;
+    }
+
 }
 
