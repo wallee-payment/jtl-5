@@ -11,6 +11,6 @@
     }
   },
   "require": {
-    "wallee/sdk": "4.8.0"
+    "wallee/sdk": "4.8.1"
   }
 }

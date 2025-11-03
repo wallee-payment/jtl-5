@@ -4,20 +4,20 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "6d3a43607fe60ae83dfcfc76b9176706",
+    "content-hash": "0a760f77740287dccfe015d51a262bb0",
     "packages": [
         {
             "name": "wallee/sdk",
-            "version": "4.8.0",
+            "version": "4.8.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/wallee-payment/php-sdk.git",
-                "reference": "b2ae47bb1827d6dfd6d784ed487e834b2385daf5"
+                "reference": "2ff10ec51bdccf2cd057d90769f1706315b8e608"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/wallee-payment/php-sdk/zipball/b2ae47bb1827d6dfd6d784ed487e834b2385daf5",
-                "reference": "b2ae47bb1827d6dfd6d784ed487e834b2385daf5",
+                "url": "https://api.github.com/repos/wallee-payment/php-sdk/zipball/2ff10ec51bdccf2cd057d90769f1706315b8e608",
+                "reference": "2ff10ec51bdccf2cd057d90769f1706315b8e608",
                 "shasum": ""
             },
             "require": {
@@ -59,10 +59,10 @@
                 "wallee"
             ],
             "support": {
-                "source": "https://github.com/wallee-payment/php-sdk/tree/4.8.0",
+                "source": "https://github.com/wallee-payment/php-sdk/tree/4.8.1",
                 "issues": "https://github.com/wallee-payment/php-sdk/issues"
             },
-            "time": "2025-03-24T13:23:13+00:00"
+            "time": "2025-10-29T13:59:06+00:00"
         }
     ],
     "packages-dev": [],
