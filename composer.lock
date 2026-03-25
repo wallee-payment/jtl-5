@@ -11,7 +11,7 @@
             "version": "4.8.1",
             "source": {
                 "type": "git",
-                "url": "https://github.com/wallee-payment/php-sdk.git",
+                "url": "git@github.com:wallee-payment/php-sdk.git",
                 "reference": "2ff10ec51bdccf2cd057d90769f1706315b8e608"
             },
             "dist": {
@@ -58,10 +58,6 @@
                 "sdk",
                 "wallee"
             ],
-            "support": {
-                "source": "https://github.com/wallee-payment/php-sdk/tree/4.8.1",
-                "issues": "https://github.com/wallee-payment/php-sdk/issues"
-            },
             "time": "2025-10-29T13:59:06+00:00"
         }
     ],
