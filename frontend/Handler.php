@@ -11,6 +11,7 @@ use Plugin\jtl_wallee\Services\WalleeRefundService;
 use Plugin\jtl_wallee\Services\WalleeTransactionService;
 use Plugin\jtl_wallee\WalleeHelper;
 use Wallee\Sdk\ApiClient;
+use Wallee\Sdk\ApiException;
 use Wallee\Sdk\Model\TransactionState;
 
 final class Handler
@@ -273,7 +274,18 @@ final class Handler
         $_SESSION['possiblePaymentMethodName'] = $paymentMethod->getName();
         $_SESSION['orderData'] = $orderData;
 
-        $this->confirmTransaction($spaceId, $createdTransactionId);
+        try {
+            $this->confirmTransaction($spaceId, $createdTransactionId);
+        } catch (ApiException $e) {
+            // The service already cancelled the JTL order it had just created.
+            // Redirect to the standard fail page so the user sees a sensible
+            // error instead of an unhandled exception.
+            WalleeHelper::log(
+                'getRedirectUrlAfterCreatedTransaction: confirm failed (HTTP '
+                . $e->getCode() . '): ' . $e->getMessage()
+            );
+            return Shop::getURL() . '/' . WalleeHelper::PLUGIN_CUSTOM_PAGES['fail-page'][$_SESSION['cISOSprache']];
+        }
 
 		$integration = WalleeHelper::getIntegrationType($this->plugin->getId());
 		if ($integration === WalleeHelper::INTEGRATION_TYPE_PAYMENT_PAGE) {
