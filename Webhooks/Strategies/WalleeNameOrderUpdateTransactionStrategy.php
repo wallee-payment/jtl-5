@@ -67,7 +67,7 @@ class WalleeNameOrderUpdateTransactionStrategy implements WalleeOrderUpdateStrat
                     $orderData = $order->fuelleBestellung();
                     $this->transactionService->addIncomingPayment((string)$transactionId, $orderData, $transaction);
                     $this->transactionService->updateWawiSyncFlag($orderId, $this->transactionService::LET_SYNC_TO_WAWI);
-                    $this->transactionService->handleNextOrderReferenceNumber($transaction->getMetaData()['order_no']);
+                    $this->transactionService->handleNextOrderReferenceNumber($transaction->getMetaData()['order_no'] ?? null);
                 }
                 break;
 
@@ -75,7 +75,7 @@ class WalleeNameOrderUpdateTransactionStrategy implements WalleeOrderUpdateStrat
                 $order = new Bestellung($orderId);
                 if ($order && (int )$order->cStatus === \BESTELLUNG_STATUS_OFFEN) {
                     $this->transactionService->updateWawiSyncFlag($orderId, $this->transactionService::LET_SYNC_TO_WAWI);
-                    $this->transactionService->handleNextOrderReferenceNumber($transaction->getMetaData()['order_no']);
+                    $this->transactionService->handleNextOrderReferenceNumber($transaction->getMetaData()['order_no'] ?? null);
                 }
                 break;
 
