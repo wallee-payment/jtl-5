@@ -71,7 +71,7 @@ class WalleeNameOrderUpdateTransactionInvoiceStrategy implements WalleeOrderUpda
 
                 $order = new Bestellung($orderId);
                 $this->transactionService->addIncomingPayment((string)$transactionId, $order, $transaction);
-                $this->transactionService->handleNextOrderReferenceNumber($transaction->getMetaData()['order_no']);
+                $this->transactionService->handleNextOrderReferenceNumber($transaction->getMetaData()['order_no'] ?? null);
                 print 'Order ' . $orderId . ' status was updated to paid. Triggered by Transaction Invoice webhook.';
                 break;
         }

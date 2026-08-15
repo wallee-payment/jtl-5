@@ -890,11 +890,17 @@ class WalleeTransactionService
     }
 
     /**
-     * @param string $orderReference
+     * @param string|null $orderReference
      * @return void
      */
-    public function handleNextOrderReferenceNumber(string $orderReference): void
+    public function handleNextOrderReferenceNumber(?string $orderReference): void
     {
+        // Orders created by the shop before payment draw their number from the native
+        // JTL counter, so no reference reaches the metadata and there is nothing to advance.
+        if ($orderReference === null || $orderReference === '') {
+            return;
+        }
+
         if ($this->isPreventFromDuplicatedOrders() === false) {
             // Updates order number for next order. Increase by 1 if is needed
             WalleeHelper::createOrderNo(true, $orderReference);

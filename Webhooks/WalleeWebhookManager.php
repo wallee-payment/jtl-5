@@ -96,7 +96,8 @@ class WalleeWebhookManager
                 $transactionStateFromWebhook = $this?->data['state'] ?? null;
 
                 $transaction = $this->transactionService->getTransactionFromPortal($entityId);
-                $orderId = (int)$transaction->getMetaData()['orderId'] ?? null;
+                $metaData = $transaction->getMetaData() ?? [];
+                $orderId = isset($metaData['orderId']) ? (int)$metaData['orderId'] : null;
 
                 if ($this->shouldSendAuthorizationEmail($transactionStateFromWebhook, $transaction, $orderId)) {
                     $this->transactionService->sendEmail($orderId, 'authorization');
