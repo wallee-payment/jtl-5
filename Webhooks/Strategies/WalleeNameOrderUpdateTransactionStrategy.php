@@ -63,20 +63,24 @@ class WalleeNameOrderUpdateTransactionStrategy implements WalleeOrderUpdateStrat
         switch ($transactionState) {
             case TransactionState::FULFILL:
                 $order = new Bestellung($orderId);
-                if ($order && (int )$order->cStatus !== \BESTELLUNG_STATUS_BEZAHLT) {
+                // addIncomingPayment below sets the order to BEZAHLT unconditionally, so the
+                // status has to be read before it runs to still see a cancelled order.
+                $statusBeforePayment = (int)$order->cStatus;
+                if ($order && $statusBeforePayment !== \BESTELLUNG_STATUS_BEZAHLT) {
                     $orderData = $order->fuelleBestellung();
                     $this->transactionService->addIncomingPayment((string)$transactionId, $orderData, $transaction);
-                    $this->transactionService->updateWawiSyncFlag($orderId, $this->transactionService::LET_SYNC_TO_WAWI);
-                    $this->transactionService->handleNextOrderReferenceNumber($transaction->getMetaData()['order_no']);
+                    $this->transactionService->handleNextOrderReferenceNumber($transaction->getMetaData()['order_no'] ?? null);
                 }
+                $this->releaseOrderToWawi($orderId, $statusBeforePayment);
                 break;
 
             case TransactionState::AUTHORIZED:
                 $order = new Bestellung($orderId);
-                if ($order && (int )$order->cStatus === \BESTELLUNG_STATUS_OFFEN) {
-                    $this->transactionService->updateWawiSyncFlag($orderId, $this->transactionService::LET_SYNC_TO_WAWI);
-                    $this->transactionService->handleNextOrderReferenceNumber($transaction->getMetaData()['order_no']);
+                $statusBeforePayment = (int)$order->cStatus;
+                if ($order && $statusBeforePayment === \BESTELLUNG_STATUS_OFFEN) {
+                    $this->transactionService->handleNextOrderReferenceNumber($transaction->getMetaData()['order_no'] ?? null);
                 }
+                $this->releaseOrderToWawi($orderId, $statusBeforePayment);
                 break;
 
             case TransactionState::FAILED:
@@ -88,5 +92,25 @@ class WalleeNameOrderUpdateTransactionStrategy implements WalleeOrderUpdateStrat
                 break;
         }
         $this->transactionService->updateTransactionStatus($transactionId, $transactionState);
+    }
+
+    /**
+     * Hands a successfully paid order over to Wawi.
+     *
+     * Kept outside the order status checks above: a transaction invoice webhook can mark the
+     * order paid before this one arrives, and an order that is no longer OFFEN or is already
+     * BEZAHLT would then never have its sync flag released, leaving it invisible to Wawi.
+     *
+     * @param int $orderId
+     * @param int $statusBeforePayment order status as it was before this webhook touched it
+     * @return void
+     */
+    private function releaseOrderToWawi(int $orderId, int $statusBeforePayment): void
+    {
+        if ($statusBeforePayment === \BESTELLUNG_STATUS_STORNO) {
+            return;
+        }
+
+        $this->transactionService->releaseOrderToWawiOnce($orderId);
     }
 }

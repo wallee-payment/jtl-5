@@ -890,11 +890,17 @@ class WalleeTransactionService
     }
 
     /**
-     * @param string $orderReference
+     * @param string|null $orderReference
      * @return void
      */
-    public function handleNextOrderReferenceNumber(string $orderReference): void
+    public function handleNextOrderReferenceNumber(?string $orderReference): void
     {
+        // Orders created by the shop before payment draw their number from the native
+        // JTL counter, so no reference reaches the metadata and there is nothing to advance.
+        if ($orderReference === null || $orderReference === '') {
+            return;
+        }
+
         if ($this->isPreventFromDuplicatedOrders() === false) {
             // Updates order number for next order. Increase by 1 if is needed
             WalleeHelper::createOrderNo(true, $orderReference);
@@ -1032,6 +1038,63 @@ class WalleeTransactionService
                 );
             }
         }
+    }
+
+    /**
+     * Hands an order over to Wawi, at most once per order.
+     *
+     * cAbgeholt cannot tell "the plugin parked this order while it was still unpaid" apart
+     * from "Wawi has already collected it", so releasing it unconditionally would put a
+     * collected order back into the export queue on every repeated webhook delivery. The
+     * marker column records that the release already happened.
+     *
+     * @param int $orderId
+     * @return bool True when this call performed the release.
+     */
+    public function releaseOrderToWawiOnce(int $orderId): bool
+    {
+        if ($orderId <= 0) {
+            return false;
+        }
+
+        if (!WalleeHelper::checkDBColumnExists('wallee_transactions', 'wawi_sync_released')) {
+            // Migration has not run yet, which happens when the files are updated without
+            // the plugin version being raised. Releasing the order is still better than
+            // withholding it, but without the marker every repeated delivery releases it
+            // again, so say so rather than let it look intentional.
+            WalleeHelper::log(
+                'releaseOrderToWawiOnce: column wawi_sync_released is missing, releasing order '
+                . $orderId . ' without the repeat guard. Run the plugin migrations.'
+            );
+            $this->updateWawiSyncFlag($orderId, self::LET_SYNC_TO_WAWI);
+
+            return true;
+        }
+
+        $db = Shop::Container()->getDB();
+        $affected = (int)$db->queryPrepared(
+            "UPDATE wallee_transactions
+                SET wawi_sync_released = 1, updated_at = NOW()
+            WHERE order_id = :orderId
+                AND wawi_sync_released = 0",
+            ['orderId' => (string)$orderId],
+            ReturnType::AFFECTED_ROWS
+        );
+
+        if ($affected < 1) {
+            $row = $db->select('wallee_transactions', 'order_id', (string)$orderId);
+            if ($row !== null) {
+                WalleeHelper::log("releaseOrderToWawiOnce: Order $orderId was already released to Wawi.");
+                return false;
+            }
+
+            // No local record to mark, which is not a reason to withhold the order.
+            WalleeHelper::log("releaseOrderToWawiOnce: No local record for order $orderId, releasing anyway.");
+        }
+
+        $this->updateWawiSyncFlag($orderId, self::LET_SYNC_TO_WAWI);
+
+        return true;
     }
 
     /**
