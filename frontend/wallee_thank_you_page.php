@@ -41,7 +41,10 @@ if ($transactionId) {
         // Wawi if the asynchronous webhook is delayed or fails.
         if ($state === TransactionState::FULFILL || $state === TransactionState::AUTHORIZED) {
             WalleeHelper::log("thank_you_page: Transaction $transactionId is successful ($state). Resetting cAbgeholt to LET_SYNC_TO_WAWI ('N').");
-            $transactionService->updateWawiSyncFlag($orderId, $transactionService::LET_SYNC_TO_WAWI);
+            // Goes through the same one time release as the webhook. Releasing here directly
+            // would leave the marker unset, and the webhook arriving afterwards would hand
+            // the order to Wawi a second time.
+            $transactionService->releaseOrderToWawiOnce($orderId);
         }
     }
 } else {

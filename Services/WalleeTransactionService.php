@@ -1058,9 +1058,16 @@ class WalleeTransactionService
         }
 
         if (!WalleeHelper::checkDBColumnExists('wallee_transactions', 'wawi_sync_released')) {
-            // Migration has not run yet. Keep the previous behaviour rather than never
-            // releasing the order at all.
+            // Migration has not run yet, which happens when the files are updated without
+            // the plugin version being raised. Releasing the order is still better than
+            // withholding it, but without the marker every repeated delivery releases it
+            // again, so say so rather than let it look intentional.
+            WalleeHelper::log(
+                'releaseOrderToWawiOnce: column wawi_sync_released is missing, releasing order '
+                . $orderId . ' without the repeat guard. Run the plugin migrations.'
+            );
             $this->updateWawiSyncFlag($orderId, self::LET_SYNC_TO_WAWI);
+
             return true;
         }
 
