@@ -55,12 +55,12 @@ class WalleeNameOrderUpdateRefundStrategy implements WalleeOrderUpdateStrategyIn
          * @var \Wallee\Sdk\Model\Refund $refund
          */
         $refund = $this->refundService->getRefundFromPortal($entityId);
-        $orderId = (int)$refund->getTransaction()->getMetaData()['orderId'] ?? '';
+        $orderId = (int)($refund->getTransaction()->getMetaData()['orderId'] ?? 0);
 
         if (empty($orderId)) {
             $transactionId = (int)$refund->getTransaction()->getId();
             $localTransaction = $this->transactionService->getLocalWalleeTransactionById((string)$transactionId);
-            $orderId = (int)$localTransaction->order_id;
+            $orderId = (int)($localTransaction->order_id ?? 0);
         }
         $this->refundService->createRefundRecord((int)$entityId, $orderId, $refund->getAmount());
 

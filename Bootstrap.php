@@ -159,7 +159,7 @@ class Bootstrap extends Bootstrapper
         $dispatcher->listen('shop.hook.' . \HOOK_SMARTY_OUTPUTFILTER, [$handler, 'contentUpdate']);
         $dispatcher->listen('shop.hook.' . \HOOK_BESTELLABSCHLUSS_INC_BESTELLUNGINDB_ENDE, function ($args) use ($handler) {
             $obj = Shop::Container()->getDB()->selectSingleRow('tzahlungsart', 'kZahlungsart', (int)$_SESSION['AktiveZahlungsart']);
-            $createOrderAfterPayment = (int)$obj->nWaehrendBestellung ?? 1;
+            $createOrderAfterPayment = (int)($obj->nWaehrendBestellung ?? 1);
             if ($createOrderAfterPayment === 0) {
                 if (isset($_SESSION['Zahlungsart']->cModulId) && str_contains(\strtolower($_SESSION['Zahlungsart']->cModulId), 'wallee')) {
                     $redirectUrl = $handler->getRedirectUrlAfterCreatedTransaction($args['oBestellung']);

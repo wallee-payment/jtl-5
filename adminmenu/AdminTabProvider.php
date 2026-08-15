@@ -219,7 +219,7 @@ class AdminTabProvider
                     exit;
                 }
                 
-                $amount = (float) $_REQUEST['amount'] ?? 0;
+                $amount = (float)($_REQUEST['amount'] ?? 0);
                 $this->processRefund($transactionId, $amount);
                 break;
             
