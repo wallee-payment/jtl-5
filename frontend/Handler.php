@@ -12,6 +12,7 @@ use Plugin\jtl_wallee\Services\WalleeTransactionService;
 use Plugin\jtl_wallee\WalleeHelper;
 use Wallee\Sdk\ApiClient;
 use Wallee\Sdk\ApiException;
+use Wallee\Sdk\VersioningException;
 use Wallee\Sdk\Model\TransactionState;
 
 final class Handler
@@ -276,13 +277,13 @@ final class Handler
 
         try {
             $this->confirmTransaction($spaceId, $createdTransactionId);
-        } catch (ApiException $e) {
+        } catch (ApiException | VersioningException $e) {
             // The service already cancelled the JTL order it had just created.
             // Redirect to the standard fail page so the user sees a sensible
             // error instead of an unhandled exception.
             WalleeHelper::log(
-                'getRedirectUrlAfterCreatedTransaction: confirm failed (HTTP '
-                . $e->getCode() . '): ' . $e->getMessage()
+                'getRedirectUrlAfterCreatedTransaction: confirm failed ('
+                . get_class($e) . ' ' . $e->getCode() . '): ' . $e->getMessage()
             );
             return Shop::getURL() . '/' . WalleeHelper::PLUGIN_CUSTOM_PAGES['fail-page'][$_SESSION['cISOSprache']];
         }

@@ -221,16 +221,19 @@ class WalleeTransactionService
         try {
             $this->apiClient->getTransactionService()
                 ->confirm($this->spaceId, $pendingTransaction);
-        } catch (ApiException $e) {
+        } catch (ApiException | VersioningException $e) {
             // The JTL order and the local transaction record were created above
             // before the API call. If confirm fails (e.g. HTTP 442 from server-side
             // address validation), the customer never reaches the payment page and
-            // no webhook will ever flip the order out of NOT_SYNC_TO_WAWI — leaving
+            // no webhook will ever flip the order out of NOT_SYNC_TO_WAWI, leaving
             // the order stranded. Cancel it explicitly so stock is restored and the
             // order is removed via the native payment-method flow.
+            // VersioningException is caught alongside because the SDK derives it from
+            // Exception rather than ApiException, so an HTTP 409 would otherwise skip
+            // this rollback entirely.
             WalleeHelper::log(
                 'confirmTransaction: confirm() failed for transaction ' . $transactionId
-                . ' (HTTP ' . $e->getCode() . '): ' . $e->getMessage()
+                . ' (' . get_class($e) . ' ' . $e->getCode() . '): ' . $e->getMessage()
                 . '. Rolling back order ' . ($orderId ?? 'n/a') . '.'
             );
             if ($createOrderAfterPayment === 1 && !empty($orderId)) {
