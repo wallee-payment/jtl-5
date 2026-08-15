@@ -18,6 +18,7 @@ use Plugin\jtl_wallee\WalleeHelper;
 use stdClass;
 use Wallee\Sdk\ApiClient;
 use Wallee\Sdk\ApiException;
+use Wallee\Sdk\VersioningException;
 use Wallee\Sdk\Model\{AddressCreate,
   CreationEntityState,
   CriteriaOperator,
@@ -44,6 +45,8 @@ class WalleeTransactionService
 {
     private const MAX_RETRIES = 12;
     private const PAUSE_DURATION = 5;
+    private const VERSION_CONFLICT_RETRIES = 3;
+    private const VERSION_CONFLICT_PAUSE_MICROSECONDS = 200000;
     public const LET_SYNC_TO_WAWI = 'N';
     public const NOT_SYNC_TO_WAWI = 'Y';
 
@@ -331,7 +334,6 @@ class WalleeTransactionService
         }
 
         $pendingTransaction->setId($transactionId);
-        $pendingTransaction->setVersion($transaction->getVersion());
 
         $lineItems = $this->getLineItems($_SESSION['Warenkorb']->PositionenArr);
         $pendingTransaction->setLineItems($lineItems);
@@ -343,8 +345,33 @@ class WalleeTransactionService
         $pendingTransaction->setBillingAddress($billingAddress);
         $pendingTransaction->setShippingAddress($shippingAddress);
 
-        return $this->apiClient->getTransactionService()
-            ->update($this->spaceId, $pendingTransaction);
+        // The version read above is stale as soon as another request updates the same
+        // transaction, which happens routinely because this runs from five cart hooks and
+        // the Smarty output filter. Re-read the version and retry instead of surfacing the
+        // conflict to the customer.
+        for ($attempt = 1; ; $attempt++) {
+            $pendingTransaction->setVersion($transaction->getVersion());
+
+            try {
+                return $this->apiClient->getTransactionService()
+                    ->update($this->spaceId, $pendingTransaction);
+            } catch (VersioningException $e) {
+                if ($attempt >= self::VERSION_CONFLICT_RETRIES) {
+                    WalleeHelper::log(
+                        'updateTransaction: giving up on transaction ' . $transactionId
+                        . ' after ' . $attempt . ' version conflicts.'
+                    );
+                    throw $e;
+                }
+
+                usleep(self::VERSION_CONFLICT_PAUSE_MICROSECONDS);
+
+                $transaction = $this->getTransactionFromPortal($transactionId);
+                if (empty($transaction) || empty($transaction->getVersion())) {
+                    throw $e;
+                }
+            }
+        }
     }
 
     /**
