@@ -71,6 +71,7 @@ class WalleeNameOrderUpdateTransactionInvoiceStrategy implements WalleeOrderUpda
 
                 $order = new Bestellung($orderId);
                 $this->transactionService->addIncomingPayment((string)$transactionId, $order, $transaction);
+                $this->transactionService->updateWawiSyncFlag($orderId, $this->transactionService::LET_SYNC_TO_WAWI);
                 $this->transactionService->handleNextOrderReferenceNumber($transaction->getMetaData()['order_no'] ?? null);
                 print 'Order ' . $orderId . ' status was updated to paid. Triggered by Transaction Invoice webhook.';
                 break;

@@ -66,17 +66,17 @@ class WalleeNameOrderUpdateTransactionStrategy implements WalleeOrderUpdateStrat
                 if ($order && (int )$order->cStatus !== \BESTELLUNG_STATUS_BEZAHLT) {
                     $orderData = $order->fuelleBestellung();
                     $this->transactionService->addIncomingPayment((string)$transactionId, $orderData, $transaction);
-                    $this->transactionService->updateWawiSyncFlag($orderId, $this->transactionService::LET_SYNC_TO_WAWI);
                     $this->transactionService->handleNextOrderReferenceNumber($transaction->getMetaData()['order_no'] ?? null);
                 }
+                $this->releaseOrderToWawi($orderId);
                 break;
 
             case TransactionState::AUTHORIZED:
                 $order = new Bestellung($orderId);
                 if ($order && (int )$order->cStatus === \BESTELLUNG_STATUS_OFFEN) {
-                    $this->transactionService->updateWawiSyncFlag($orderId, $this->transactionService::LET_SYNC_TO_WAWI);
                     $this->transactionService->handleNextOrderReferenceNumber($transaction->getMetaData()['order_no'] ?? null);
                 }
+                $this->releaseOrderToWawi($orderId);
                 break;
 
             case TransactionState::FAILED:
@@ -88,5 +88,25 @@ class WalleeNameOrderUpdateTransactionStrategy implements WalleeOrderUpdateStrat
                 break;
         }
         $this->transactionService->updateTransactionStatus($transactionId, $transactionState);
+    }
+
+    /**
+     * Hands a successfully paid order over to Wawi.
+     *
+     * Kept outside the order status checks above: a transaction invoice webhook can mark the
+     * order paid before this one arrives, and an order that is no longer OFFEN or is already
+     * BEZAHLT would then never have its sync flag released, leaving it invisible to Wawi.
+     *
+     * @param int $orderId
+     * @return void
+     */
+    private function releaseOrderToWawi(int $orderId): void
+    {
+        $order = new Bestellung($orderId);
+        if ((int)$order->cStatus === \BESTELLUNG_STATUS_STORNO) {
+            return;
+        }
+
+        $this->transactionService->updateWawiSyncFlag($orderId, $this->transactionService::LET_SYNC_TO_WAWI);
     }
 }
