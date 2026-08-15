@@ -421,15 +421,35 @@ class WalleeTransactionService
             ->fetchPaymentMethods($this->spaceId, $transactionId, 'iframe');
     }
 
-    public function updateTransactionStatus($transactionId, $newStatus)
+    /**
+     * @param $transactionId
+     * @param $newStatus
+     * @return bool True when the local record carries the new state afterwards.
+     */
+    public function updateTransactionStatus($transactionId, $newStatus): bool
     {
-        Shop::Container()
-            ->getDB()->update(
-                'wallee_transactions',
-                ['transaction_id'],
-                [$transactionId],
-                (object)['state' => $newStatus]
+        $db = Shop::Container()->getDB();
+        $db->update(
+            'wallee_transactions',
+            ['transaction_id'],
+            [(string)$transactionId],
+            (object)['state' => $newStatus]
+        );
+
+        // The affected row count cannot answer this: MySQL reports zero rows both when the
+        // row already holds the new state and when there is no row at all. Reading the record
+        // back also covers an update that was rejected rather than skipped.
+        $row = $db->select('wallee_transactions', 'transaction_id', (string)$transactionId);
+        $stored = $row !== null && (string)($row->state ?? '') === (string)$newStatus;
+
+        if (!$stored) {
+            WalleeHelper::log(
+                'updateTransactionStatus: state ' . $newStatus . ' was not stored for transaction ' . $transactionId
+                . ($row === null ? ' (no local record)' : ' (record holds ' . ($row->state ?? 'null') . ')')
             );
+        }
+
+        return $stored;
     }
 
     /**
