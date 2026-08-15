@@ -199,11 +199,19 @@ class Bootstrap extends Bootstrapper
                 }
                 $paymentMethodEntity = new Zahlungsart($order->kZahlungsart);
 
-                if ($order->cStatus != \BESTELLUNG_STATUS_VERSANDT && $paymentMethodEntity->cAnbieter === 'Wallee') {
+                // The shop writes the new status before this hook runs, so the order read above
+                // already carries it. Only restore 'Bezahlt' when the sync dropped the order
+                // below it, leaving a shipped or partially shipped order as it is. The status
+                // codes are not monotonic, so cancelled has to be excluded by name.
+                $currentStatus = (int)$order->cStatus;
+                $needsPaidStatus = $currentStatus !== \BESTELLUNG_STATUS_STORNO
+                    && $currentStatus < \BESTELLUNG_STATUS_BEZAHLT;
+
+                if ($needsPaidStatus && $paymentMethodEntity->cAnbieter === 'Wallee') {
                     WalleeHelper::log("HOOK_BESTELLUNGEN_XML_BEARBEITESET: Triggered for Order $orderId. Setting status to Paid.");
                     $moduleId = $paymentMethodEntity->cModulId ?? '';
                     $paymentMethod = new Method($moduleId);
-                    // We keep setOrderStatusToPaid to ensure the order transitions to 'Bezahlt' (status 3) 
+                    // We keep setOrderStatusToPaid to ensure the order transitions to 'Bezahlt' (status 3)
                     // after Wawi sync, instead of staying at 'In Bearbeitung' (status 2).
                     $paymentMethod->setOrderStatusToPaid($order);
                     // We intentionally do NOT call updateWawiSyncFlag here anymore. 
