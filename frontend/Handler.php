@@ -249,7 +249,7 @@ final class Handler
         $config = WalleeHelper::getConfigByID($this->plugin->getId());
         $spaceId = $config[WalleeHelper::SPACE_ID];
 
-        $createdTransactionId = (int)$_SESSION['transactionId'] ?? null;
+        $createdTransactionId = (int)($_SESSION['transactionId'] ?? 0);
 
         if (empty($createdTransactionId)) {
             $failedUrl = Shop::getURL() . '/' . WalleeHelper::PLUGIN_CUSTOM_PAGES['fail-page'][$_SESSION['cISOSprache']];

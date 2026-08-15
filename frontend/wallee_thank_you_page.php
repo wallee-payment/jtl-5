@@ -10,7 +10,8 @@ use Wallee\Sdk\Model\TransactionState;
 /** @global \JTL\Smarty\JTLSmarty $smarty */
 /** @global JTL\Plugin\PluginInterface $plugin */
 
-$transactionId = (int)$_GET['tID'] ?? null;
+$orderId = 0;
+$transactionId = (int)($_GET['tID'] ?? 0);
 if ($transactionId) {
     $apiClient = new WalleeApiClient($plugin->getId());
     $transactionService = new WalleeTransactionService($apiClient->getApiClient(), $plugin);
@@ -20,9 +21,12 @@ if ($transactionId) {
 	Shop::Container()->getLogService()->notice(
 	  "Transaction found. Starting to create order."
 	);
-    $createAfterPayment = (int)$transaction->getMetaData()['orderAfterPayment'] ?? 1;
+    // Defaults to the branch that reads the local record, which carries order_id in both
+    // configurations. The metadata key is written together with orderId, so when one is
+    // missing the other is too, and the other branch would have nothing to resolve.
+    $createAfterPayment = (int)($transaction->getMetaData()['orderAfterPayment'] ?? 0);
     if ($createAfterPayment) {
-        $orderId = (int)$transaction->getMetaData()['orderId'];
+        $orderId = (int)($transaction->getMetaData()['orderId'] ?? 0);
         $order = new Bestellung($orderId);
         $orderId = (int)$order->kBestellung;
     } else {
@@ -30,7 +34,7 @@ if ($transactionId) {
 		  "Order was not created. We created it previously and returning the ID."
 		);
         $localTransaction = $transactionService->getLocalWalleeTransactionById((string)$transactionId);
-        $orderId = (int) $localTransaction->order_id;
+        $orderId = (int)($localTransaction->order_id ?? 0);
     }
 
     if ($orderId > 0) {

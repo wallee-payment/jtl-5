@@ -146,7 +146,7 @@ class WalleeTransactionService
         $pendingTransaction->setShippingAddress($this->createShippingAddress());
 
         $obj = Shop::Container()->getDB()->selectSingleRow('tzahlungsart', 'kZahlungsart', (int)$_SESSION['AktiveZahlungsart']);
-        $createOrderAfterPayment = (int)$obj->nWaehrendBestellung ?? 1;
+        $createOrderAfterPayment = (int)($obj->nWaehrendBestellung ?? 1);
         $orderReferenceNumber = null;
 
         $order = new \stdClass();
