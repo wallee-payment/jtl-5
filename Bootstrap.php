@@ -86,6 +86,23 @@ class Bootstrap extends Bootstrapper
     /**
      * @inheritDoc
      */
+    public function updated($oldVersion, $newVersion)
+    {
+        parent::updated($oldVersion, $newVersion);
+
+        // Listeners already exist at this point. Only flip "Enable Payload Signature And State"
+        $apiClient = $this->getApiClient();
+        if ($apiClient === null) {
+            return;
+        }
+
+        (new WalleeWebhookService($apiClient, $this->getPlugin()->getId()))
+            ->enablePayloadSignatureForInstalledListeners();
+    }
+
+    /**
+     * @inheritDoc
+     */
     public function disabled(): void
     {
         parent::disabled();
@@ -203,11 +220,11 @@ class Bootstrap extends Bootstrapper
                     WalleeHelper::log("HOOK_BESTELLUNGEN_XML_BEARBEITESET: Triggered for Order $orderId. Setting status to Paid.");
                     $moduleId = $paymentMethodEntity->cModulId ?? '';
                     $paymentMethod = new Method($moduleId);
-                    // We keep setOrderStatusToPaid to ensure the order transitions to 'Bezahlt' (status 3) 
+                    // We keep setOrderStatusToPaid to ensure the order transitions to 'Bezahlt' (status 3)
                     // after Wawi sync, instead of staying at 'In Bearbeitung' (status 2).
                     $paymentMethod->setOrderStatusToPaid($order);
-                    // We intentionally do NOT call updateWawiSyncFlag here anymore. 
-                    // The original code was prematurely marking orders as 'synced' before the XML transfer 
+                    // We intentionally do NOT call updateWawiSyncFlag here anymore.
+                    // The original code was prematurely marking orders as 'synced' before the XML transfer
                     // completed, causing intermittent order loss during Wawi synchronization.
                 }
             }

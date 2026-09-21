@@ -640,7 +640,8 @@ class WalleeTransactionService
     {
         $lineItem = new LineItemCreate();
         $name = \is_array($productData->cName) ? $productData->cName[$_SESSION['cISOSprache']] : $productData->cName;
-        $lineItem->setName(html_entity_decode($name));
+        $name = $this->fitToLength(html_entity_decode($name), 150, 1, $productData->cArtNr ?: 'Product');
+        $lineItem->setName($name);
 
         $slug = strtolower(str_replace([' ', '+', '%', '[', ']', '=>'], ['-', '', '', '', '', '-'], $name));
         $slug = preg_replace('/-+/', '-', $slug);
@@ -670,8 +671,8 @@ class WalleeTransactionService
             }
         }
 
-        $lineItem->setUniqueId($uniqueName);
-        $lineItem->setSku($productData->cArtNr);
+        $lineItem->setUniqueId($this->fitToLength($uniqueName, 200, 1, 'product'));
+        $lineItem->setSku($this->fitToLength((string) $productData->cArtNr ?? '', 200, 1, 'product'));
         $lineItem->setQuantity($productData->nAnzahl);
 
         $currencyFactor = Frontend::getCurrency()->getConversionFactor();
@@ -714,10 +715,11 @@ class WalleeTransactionService
     {
         $lineItem = new LineItemCreate();
         $name = \is_array($productData->cName) ? $productData->cName[$_SESSION['cISOSprache']] : $productData->cName;
-		$name = html_entity_decode($name);
-        $lineItem->setName('Shipping: ' . $name);
-        $lineItem->setUniqueId('shipping: ' . $name);
-        $lineItem->setSku('shipping: ' . $name);
+        $nameFront = $this->fitToLength('Shipping: ' . html_entity_decode($name), 150, 1, 'Shipping');
+        $nameId = $this->fitToLength('shipping: ' . html_entity_decode($name), 200, 1, 'shipping');
+        $lineItem->setName($nameFront);
+        $lineItem->setUniqueId($nameId);
+        $lineItem->setSku($nameId);
         $lineItem->setQuantity(1);
         $currencyFactor = Frontend::getCurrency()->getConversionFactor();
         $priceDecimal = Tax::getGross(
@@ -1068,6 +1070,31 @@ class WalleeTransactionService
         $title = $showVat . Shop::Lang()->get('vat', 'productDetails');
 
         return new TaxCreate(["rate" => $rate, "title" => $title]);
+    }
+
+    /**
+     * Fits a string to the given length constraints.
+     *
+     * Length constraints match those in the Wallee SDK
+     * LineItemCreate model. Truncates with a hash suffix and provides
+     * a fallback for empty required values.
+     *
+     * @param string $value
+     * @param int $maxLength
+     * @param int $minLength
+     * @param string $fallback
+     * @return string
+     */
+    private function fitToLength(string $value, int $maxLength, int $minLength = 0, string $fallback = "n/a"): string {
+        if (mb_strlen($value) < $minLength) {
+            $value = $fallback;
+        }
+        if (mb_strlen($value) <= $maxLength) {
+            return $value;
+        }
+        $hash = substr(md5($value), 0, 8);
+        $prefixLength = max(0, $maxLength - mb_strlen($hash) - 1);
+        return mb_substr($value, 0, $prefixLength) . '_' . $hash;
     }
 }
 

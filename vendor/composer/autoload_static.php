@@ -4,10 +4,10 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInit838cfe803cb1c9842bf3370e57e6afa4
+class ComposerStaticInitd1e306d4bedcf5cd2655493762d77911
 {
     public static $prefixLengthsPsr4 = array (
-        'W' => 
+        'W' =>
         array (
             'Wallee\\Sdk\\' => 11,
             'WalleePayment\\' => 14,
@@ -15,11 +15,11 @@ class ComposerStaticInit838cfe803cb1c9842bf3370e57e6afa4
     );
 
     public static $prefixDirsPsr4 = array (
-        'Wallee\\Sdk\\' => 
+        'Wallee\\Sdk\\' =>
         array (
             0 => __DIR__ . '/..' . '/wallee/sdk/lib',
         ),
-        'WalleePayment\\' => 
+        'WalleePayment\\' =>
         array (
             0 => __DIR__ . '/../..' . '/Wallee',
         ),
@@ -32,9 +32,9 @@ class ComposerStaticInit838cfe803cb1c9842bf3370e57e6afa4
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInit838cfe803cb1c9842bf3370e57e6afa4::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInit838cfe803cb1c9842bf3370e57e6afa4::$prefixDirsPsr4;
-            $loader->classMap = ComposerStaticInit838cfe803cb1c9842bf3370e57e6afa4::$classMap;
+            $loader->prefixLengthsPsr4 = ComposerStaticInitd1e306d4bedcf5cd2655493762d77911::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInitd1e306d4bedcf5cd2655493762d77911::$prefixDirsPsr4;
+            $loader->classMap = ComposerStaticInitd1e306d4bedcf5cd2655493762d77911::$classMap;
 
         }, null, ClassLoader::class);
     }

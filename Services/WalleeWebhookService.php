@@ -14,6 +14,7 @@ use Wallee\Sdk\{Model\CreationEntityState,
   Model\TransactionState,
   Model\WebhookListener,
   Model\WebhookListenerCreate,
+  Model\WebhookListenerUpdate,
   Model\WebhookUrl,
   Model\WebhookUrlCreate
 };
@@ -144,7 +145,10 @@ class WalleeWebhookService
 	 */
 	public function install(): array
 	{
-		return $this->installListeners();
+		$created = $this->installListeners();
+		$this->enablePayloadSignatureForInstalledListeners();
+
+		return $created;
 	}
 
 	/**
@@ -184,6 +188,47 @@ class WalleeWebhookService
 		}
 
 		return $returnValue;
+	}
+
+	/**
+	 * Turns on "Enable Payload Signature And State" for every already installed
+	 * listener that still has it disabled (listeners created before payload
+	 * signing was introduced). Does not create any listener.
+	 *
+	 * Without this, the signature enforced in WalleeWebhookManager
+	 * would reject every incoming webhook, because the portal does not send the
+	 * X-Signature header for unsigned listeners.
+	 *
+	 * @return void
+	 */
+	public function enablePayloadSignatureForInstalledListeners(): void
+	{
+		try {
+			$webHookUrlId = $this->getOrCreateWebHookUrl()->getId();
+			$installedWebHooks = $this->getInstalledWebHookListeners($webHookUrlId);
+		} catch (\Exception $exception) {
+			return;
+		}
+
+		foreach ($installedWebHooks as $listener) {
+			if ($listener->getEnablePayloadSignatureAndState() === true) {
+				continue;
+			}
+
+			try {
+				$update = (new WebhookListenerUpdate())
+				  ->setId($listener->getId())
+				  ->setVersion($listener->getVersion())
+				  ->setEnablePayloadSignatureAndState(true);
+
+				$this->apiClient->getWebhookListenerService()->update($this->spaceId, $update);
+			} catch (\Exception $e) {
+				WalleeHelper::log(
+				  'Failed to enable webhook payload signature for listener '
+				  . $listener->getId() . ': ' . $e->getMessage()
+				);
+			}
+		}
 	}
 
 	/**

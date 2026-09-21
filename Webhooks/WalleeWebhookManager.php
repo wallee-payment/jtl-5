@@ -33,6 +33,11 @@ class WalleeWebhookManager
     protected $data;
 
     /**
+     * @var string $rawRequestBody Unmodified webhook request body, read exactly once.
+     */
+    protected string $rawRequestBody;
+
+    /**
      * @var ApiClient $apiClient
      */
     protected ApiClient $apiClient;
@@ -60,7 +65,8 @@ class WalleeWebhookManager
     public function __construct(Plugin $plugin)
     {
         $this->plugin = $plugin;
-        $this->data = json_decode(file_get_contents('php://input'), true);
+        $this->rawRequestBody = (string)file_get_contents('php://input');
+        $this->data = [];
         $this->apiClient = (new WalleeApiClient($plugin->getId()))->getApiClient();
         $this->transactionService = new WalleeTransactionService($this->apiClient, $this->plugin);
         $this->refundService = new WalleeRefundService($this->apiClient, $this->plugin);
@@ -68,6 +74,11 @@ class WalleeWebhookManager
 
     public function listenForWebhooks(): void
     {
+        $this->validateRequestSignature();
+
+        // The payload is only decoded once the request is proven authentic.
+        $this->data = json_decode($this->rawRequestBody, true) ?? [];
+
         $listenerEntityTechnicalName = $this->data['listenerEntityTechnicalName'] ?? null;
         if (!$listenerEntityTechnicalName) {
             return;
@@ -75,20 +86,6 @@ class WalleeWebhookManager
 
         $orderUpdater = new WalleeOrderUpdater(new WalleeNameOrderUpdateTransactionStrategy($this->transactionService, $this->plugin));
         $entityId = (string)$this->data['entityId'];
-
-        $signature = $_SERVER['HTTP_X_SIGNATURE'] ?? null;
-        if (!empty($signature)) {
-            try {
-                $this->apiClient->getWebhookEncryptionService()->isContentValid($signature, file_get_contents('php://input'));
-            } catch (\Exception $e) {
-                header('Content-Type: application/json', true, 400);
-                echo json_encode([
-                    'error' => 'Webhook validation failed: ' . $e->getMessage(),
-                    'entityId' => $entityId ?? 'unknown'
-                ]);
-                exit;
-            }
-        }
 
         switch ($listenerEntityTechnicalName) {
             case WalleeHelper::TRANSACTION:
@@ -118,6 +115,60 @@ class WalleeWebhookManager
                 $paymentService->syncPaymentMethods();
                 break;
         }
+    }
+
+    /**
+     * Enforces the webhook payload signature before any business logic runs.
+     *
+     * @return void
+     */
+    private function validateRequestSignature(): void
+    {
+        $signature = $_SERVER['HTTP_X_SIGNATURE'] ?? '';
+        if ($signature === '') {
+            // Unsigned webhooks are rejected without a signal to retry: legacy senders
+            // that never sign payloads would otherwise retry forever.
+            $this->rejectRequest('Missing webhook signature header', 200);
+            return;
+        }
+
+        try {
+            $isValid = $this->apiClient->getWebhookEncryptionService()
+                ->isContentValid($signature, $this->rawRequestBody);
+        } catch (\Exception $e) {
+            $this->rejectRequest('Webhook signature could not be verified: ' . $e->getMessage());
+            return;
+        }
+
+        if ($isValid !== true) {
+            $this->rejectRequest('Webhook signature does not match the request body');
+        }
+    }
+
+    /**
+     * Logs the rejected webhook attempt and terminates the request with the given HTTP status.
+     *
+     * @param string $reason
+     * @param int $statusCode
+     * @return void
+     */
+    private function rejectRequest(string $reason, int $statusCode = 400): void
+    {
+        // Log a fingerprint of the rejected request without trusting or parsing its body.
+        Shop::Container()->getLogService()->warning(
+            'Wallee webhook rejected: ' . $reason,
+            [
+                'ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+                'userAgent' => $_SERVER['HTTP_USER_AGENT'] ?? 'unknown',
+                'signaturePresent' => !empty($_SERVER['HTTP_X_SIGNATURE']),
+                'bodyBytes' => strlen($this->rawRequestBody),
+                'bodySha256' => hash('sha256', $this->rawRequestBody),
+            ]
+        );
+
+        header('Content-Type: application/json', true, $statusCode);
+        echo json_encode(['error' => $reason]);
+        exit;
     }
 
     /**
