@@ -237,7 +237,16 @@ class AdminTabProvider
      */
     private function processRefund(?string $transactionId, float $amount): void
     {
-        $this->refundService->makeRefund($transactionId, $amount);
+        try {
+            $this->refundService->makeRefund((string)$transactionId, $amount);
+        } catch (\Throwable $e) {
+            // The service used to print and exit here itself, which is why the message is
+            // echoed rather than rendered: this action answers an admin side request.
+            Shop::Container()->getLogService()->error('Wallee refund failed: ' . $e->getMessage());
+            print $e->getMessage();
+            exit;
+        }
+
         $transaction = $this->transactionService->getTransactionFromPortal($transactionId);
         $localTransaction = $this->transactionService->getLocalWalleeTransactionById((string)$transaction->getId());
         $order = new Bestellung((int) $localTransaction->order_id);

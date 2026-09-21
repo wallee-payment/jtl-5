@@ -179,8 +179,12 @@ final class Handler
         }
 
         $transaction = $this->transactionService->getLocalWalleeTransactionById((string)$transactionId);
-        if ($transaction->state === TransactionState::AUTHORIZED) {
-            $this->transactionService->completePortalTransaction($transactionId);
+        if (($transaction->state ?? null) === TransactionState::AUTHORIZED) {
+            try {
+                $this->transactionService->completePortalTransaction($transactionId);
+            } catch (\Throwable $e) {
+                $this->reportSyncFailure('completing transaction ' . $transactionId, $e);
+            }
         }
     }
 
@@ -190,7 +194,10 @@ final class Handler
      */
     public function cancelOrderAfterWawi(array $args): void
     {
-        $order = $args['oBestellung'] ?? [];
+        $order = $args['oBestellung'] ?? null;
+        if (!$order) {
+            return;
+        }
 
         $obj = Shop::Container()->getDB()->selectSingleRow('wallee_transactions', 'order_id', $order->kBestellung);
         $transactionId = $obj->transaction_id ?? '';
@@ -202,8 +209,12 @@ final class Handler
 
         switch ((int)$order->cStatus) {
             case \BESTELLUNG_STATUS_IN_BEARBEITUNG:
-                if ($transaction->state === TransactionState::AUTHORIZED) {
-                    $this->transactionService->cancelPortalTransaction($transactionId);
+                if (($transaction->state ?? null) === TransactionState::AUTHORIZED) {
+                    try {
+                        $this->transactionService->cancelPortalTransaction($transactionId);
+                    } catch (\Throwable $e) {
+                        $this->reportSyncFailure('voiding transaction ' . $transactionId, $e);
+                    }
                 }
                 break;
 
@@ -211,11 +222,30 @@ final class Handler
                 try {
                     $portalTransaction = $this->transactionService->getTransactionFromPortal($transactionId);
                     $this->refundService->makeRefund((string)$transactionId, (float)$portalTransaction->getAuthorizationAmount());
-                } catch (\Exception $e) {
-
+                } catch (\Throwable $e) {
+                    $this->reportSyncFailure('refunding transaction ' . $transactionId, $e);
                 }
                 break;
         }
+    }
+
+    /**
+     * Records a portal call that failed while the Wawi sync was running.
+     *
+     * These are swallowed so that one order cannot abort the rest of the run, but each of
+     * them leaves the shop and the portal disagreeing about money, so none may pass
+     * unrecorded. The shop log is used rather than the plugin debug file because this is
+     * the only trace an operator gets.
+     *
+     * @param string $what
+     * @param \Throwable $e
+     * @return void
+     */
+    private function reportSyncFailure(string $what, \Throwable $e): void
+    {
+        $message = 'Wallee: ' . $what . ' failed during Wawi sync: ' . $e->getMessage();
+        Shop::Container()->getLogService()->error($message);
+        WalleeHelper::log($message);
     }
 
     /**
