@@ -18,6 +18,7 @@ use Plugin\jtl_wallee\WalleeHelper;
 use stdClass;
 use Wallee\Sdk\ApiClient;
 use Wallee\Sdk\ApiException;
+use Wallee\Sdk\VersioningException;
 use Wallee\Sdk\Model\{AddressCreate,
   CreationEntityState,
   CriteriaOperator,
@@ -44,6 +45,8 @@ class WalleeTransactionService
 {
     private const MAX_RETRIES = 12;
     private const PAUSE_DURATION = 5;
+    private const VERSION_CONFLICT_RETRIES = 3;
+    private const VERSION_CONFLICT_PAUSE_MICROSECONDS = 200000;
     public const LET_SYNC_TO_WAWI = 'N';
     public const NOT_SYNC_TO_WAWI = 'Y';
 
@@ -218,16 +221,19 @@ class WalleeTransactionService
         try {
             $this->apiClient->getTransactionService()
                 ->confirm($this->spaceId, $pendingTransaction);
-        } catch (ApiException $e) {
+        } catch (ApiException | VersioningException $e) {
             // The JTL order and the local transaction record were created above
             // before the API call. If confirm fails (e.g. HTTP 442 from server-side
             // address validation), the customer never reaches the payment page and
-            // no webhook will ever flip the order out of NOT_SYNC_TO_WAWI — leaving
+            // no webhook will ever flip the order out of NOT_SYNC_TO_WAWI, leaving
             // the order stranded. Cancel it explicitly so stock is restored and the
             // order is removed via the native payment-method flow.
+            // VersioningException is caught alongside because the SDK derives it from
+            // Exception rather than ApiException, so an HTTP 409 would otherwise skip
+            // this rollback entirely.
             WalleeHelper::log(
                 'confirmTransaction: confirm() failed for transaction ' . $transactionId
-                . ' (HTTP ' . $e->getCode() . '): ' . $e->getMessage()
+                . ' (' . get_class($e) . ' ' . $e->getCode() . '): ' . $e->getMessage()
                 . '. Rolling back order ' . ($orderId ?? 'n/a') . '.'
             );
             if ($createOrderAfterPayment === 1 && !empty($orderId)) {
@@ -331,7 +337,6 @@ class WalleeTransactionService
         }
 
         $pendingTransaction->setId($transactionId);
-        $pendingTransaction->setVersion($transaction->getVersion());
 
         $lineItems = $this->getLineItems($_SESSION['Warenkorb']->PositionenArr);
         $pendingTransaction->setLineItems($lineItems);
@@ -343,8 +348,33 @@ class WalleeTransactionService
         $pendingTransaction->setBillingAddress($billingAddress);
         $pendingTransaction->setShippingAddress($shippingAddress);
 
-        return $this->apiClient->getTransactionService()
-            ->update($this->spaceId, $pendingTransaction);
+        // The version read above is stale as soon as another request updates the same
+        // transaction, which happens routinely because this runs from five cart hooks and
+        // the Smarty output filter. Re-read the version and retry instead of surfacing the
+        // conflict to the customer.
+        for ($attempt = 1; ; $attempt++) {
+            $pendingTransaction->setVersion($transaction->getVersion());
+
+            try {
+                return $this->apiClient->getTransactionService()
+                    ->update($this->spaceId, $pendingTransaction);
+            } catch (VersioningException $e) {
+                if ($attempt >= self::VERSION_CONFLICT_RETRIES) {
+                    WalleeHelper::log(
+                        'updateTransaction: giving up on transaction ' . $transactionId
+                        . ' after ' . $attempt . ' version conflicts.'
+                    );
+                    throw $e;
+                }
+
+                usleep(self::VERSION_CONFLICT_PAUSE_MICROSECONDS);
+
+                $transaction = $this->getTransactionFromPortal($transactionId);
+                if (empty($transaction) || empty($transaction->getVersion())) {
+                    throw $e;
+                }
+            }
+        }
     }
 
     /**
