@@ -35,6 +35,9 @@
         cart_recreate_url: null,
         cart_recreate_url_id: 'cartRecreateUrl',
         handler: null,
+        collapsed_iframe_height: 30,
+        auto_submit_timer: null,
+        submitted: false,
 
         /**
          * Initialize plugin
@@ -106,20 +109,18 @@
                 });
                 WalleeCheckout.handler.setInitializeCallback(() => {
                     let loader = document.getElementById(WalleeCheckout.loader_id);
-                    loader.parentNode.removeChild(loader);
+                    if (loader && loader.parentNode) {
+                        loader.parentNode.removeChild(loader);
+                    }
                     WalleeCheckout.activateLoader(false);
-                    setTimeout(function () {
-                        if (this.measureIframe(iframeContainer) < 30) {
-                            WalleeCheckout.handler.submit();
-                        }
-                    }, 1000);
+                    WalleeCheckout.scheduleAutoSubmit(function () {
+                        return WalleeCheckout.measureIframe(iframeContainer);
+                    });
                 });
-                WalleeCheckout.handler.setHeightChangeCallback((height)=>{
-                    setTimeout(function () {
-                        if(height < 30) {
-                            WalleeCheckout.handler.submit();
-                        }
-                    }, 1000);
+                WalleeCheckout.handler.setHeightChangeCallback((height) => {
+                    WalleeCheckout.scheduleAutoSubmit(function () {
+                        return height;
+                    });
                 });
                 WalleeCheckout.handler.create(iframeContainer);
             }
@@ -131,17 +132,66 @@
          * @return {int}
          */
         measureIframe: function (iframeContainer) {
+            if (!iframeContainer) {
+                return 0;
+            }
+
             if (iframeContainer.tagName.toLowerCase() === 'iframe') {
                 return iframeContainer.offsetHeight;
             }
 
-            iframeContainer.childNodes.forEach( child => {
-                if (child.tagName.toLowerCase() === 'iframe') {
-                    return child.offsetHeight;
-                }
-            })
+            const iframe = iframeContainer.querySelector('iframe');
 
-            return 0;
+            return iframe ? iframe.offsetHeight : 0;
+        },
+
+        /**
+         * Queues the height driven auto submit.
+         *
+         * The height change callback fires on every change, so each call replaces the
+         * pending one instead of stacking a timer per event.
+         *
+         * @param resolveHeight function returning the height to judge once the delay is over
+         */
+        scheduleAutoSubmit: function (resolveHeight) {
+            window.clearTimeout(WalleeCheckout.auto_submit_timer);
+            WalleeCheckout.auto_submit_timer = window.setTimeout(function () {
+                WalleeCheckout.autoSubmitIfCollapsed(resolveHeight());
+            }, 1000);
+        },
+
+        /**
+         * Submits a payment method that renders no input of its own, which the iframe
+         * signals by staying below the collapsed height.
+         *
+         * @param height
+         */
+        autoSubmitIfCollapsed: function (height) {
+            // Negated on purpose rather than written as a >= test: a height that is not a
+            // number must not start a payment, and NaN compares false against every bound.
+            if (!(Number(height) < WalleeCheckout.collapsed_iframe_height)) {
+                return;
+            }
+
+            WalleeCheckout.submitOnce();
+        },
+
+        /**
+         * Hands the payment to the iframe handler, at most once per attempt.
+         *
+         * A second submit lands on top of a payment that is already in flight, which closes
+         * the 3D Secure window and breaks the return from an external payment app. The
+         * iframe reports a collapsed height while it shows a challenge, so without this the
+         * height driven submit above fires straight into a running payment.
+         */
+        submitOnce: function () {
+            if (WalleeCheckout.submitted) {
+                return;
+            }
+
+            WalleeCheckout.submitted = true;
+            WalleeCheckout.activateLoader(true);
+            WalleeCheckout.handler.submit();
         },
 
         /**
@@ -151,7 +201,7 @@
         validationCallBack: function (validationResult) {
             if (validationResult.success) {
                 document.querySelector(this.payment_method_handler_status).value = true;
-                WalleeCheckout.handler.submit();
+                WalleeCheckout.submitOnce();
             } else {
                 document.body.scrollTop = 0;
                 document.documentElement.scrollTop = 0;
@@ -160,6 +210,10 @@
                     WalleeCheckout.showErrors(validationResult.errors);
                 }
                 document.querySelector(this.payment_method_handler_status).value = false;
+                // Nothing is in flight after a failed validation, so a later attempt has to
+                // get through. Methods whose buttons are hidden depend on this: their only
+                // way back in is the height driven submit.
+                WalleeCheckout.submitted = false;
                 WalleeCheckout.activateLoader(false);
             }
         },
