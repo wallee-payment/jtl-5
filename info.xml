@@ -9,7 +9,7 @@
     <Icon>logo.jpg</Icon>
     <PluginID>jtl_wallee</PluginID>
     <CreateDate>2023-05-29</CreateDate>
-    <Version>1.0.49</Version>
+    <Version>1.0.50</Version>
     <Install>
         <Locales>
             <Variable>
@@ -46,6 +46,27 @@
                 <VariableLocalized iso="ENG">Payment is not available for this country or currency, please use another one</VariableLocalized>
                 <VariableLocalized iso="ITA">Il pagamento non è disponibile per questo Paese o valuta, utilizzane un altro</VariableLocalized>
                 <VariableLocalized iso="FRE">Le paiement n'est pas disponible pour ce pays ou cette devise, veuillez en utiliser un autre</VariableLocalized>
+            </Variable>
+            <Variable>
+                <Name>jtl_wallee_payment_cancelled</Name>
+                <VariableLocalized iso="GER">Die Zahlung wurde abgebrochen. Bitte wählen Sie eine Zahlungsart, um die Bestellung abzuschließen.</VariableLocalized>
+                <VariableLocalized iso="ENG">The payment was cancelled. Please choose a payment method to complete your order.</VariableLocalized>
+                <VariableLocalized iso="ITA">Il pagamento è stato annullato. Seleziona un metodo di pagamento per completare l'ordine.</VariableLocalized>
+                <VariableLocalized iso="FRE">Le paiement a été annulé. Veuillez choisir un moyen de paiement pour finaliser votre commande.</VariableLocalized>
+            </Variable>
+            <Variable>
+                <Name>jtl_wallee_payment_temporarily_unavailable</Name>
+                <VariableLocalized iso="GER">Unsere Zahlungsarten stehen derzeit nicht zur Verfügung. Bitte prüfen Sie Ihre Rechnungs- und Lieferadresse oder wählen Sie eine andere Zahlungsart.</VariableLocalized>
+                <VariableLocalized iso="ENG">Our payment methods are currently unavailable. Please check your billing and shipping address or choose a different payment method.</VariableLocalized>
+                <VariableLocalized iso="ITA">I nostri metodi di pagamento non sono al momento disponibili. Controlla l'indirizzo di fatturazione e di spedizione oppure scegli un altro metodo di pagamento.</VariableLocalized>
+                <VariableLocalized iso="FRE">Nos moyens de paiement sont actuellement indisponibles. Veuillez vérifier votre adresse de facturation et de livraison ou choisir un autre moyen de paiement.</VariableLocalized>
+            </Variable>
+            <Variable>
+                <Name>jtl_wallee_payment_failed_generic</Name>
+                <VariableLocalized iso="GER">Die Zahlung konnte nicht abgeschlossen werden. Bitte wählen Sie eine Zahlungsart, um die Bestellung abzuschließen.</VariableLocalized>
+                <VariableLocalized iso="ENG">The payment could not be completed. Please choose a payment method to complete your order.</VariableLocalized>
+                <VariableLocalized iso="ITA">Non è stato possibile completare il pagamento. Seleziona un metodo di pagamento per completare l'ordine.</VariableLocalized>
+                <VariableLocalized iso="FRE">Le paiement n'a pas pu être finalisé. Veuillez choisir un moyen de paiement pour finaliser votre commande.</VariableLocalized>
             </Variable>
             <Variable>
                 <Name>jtl_wallee_need_to_install_sdk</Name>

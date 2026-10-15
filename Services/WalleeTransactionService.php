@@ -114,11 +114,11 @@ class WalleeTransactionService
         }
         $transactionPayload->setAutoConfirmationEnabled(getenv('WALLEE_AUTOCONFIRMATION_ENABLED') ?: false);
 
-        $successUrl = Shop::getURL() . '/' . WalleeHelper::PLUGIN_CUSTOM_PAGES['thank-you-page'][$_SESSION['cISOSprache']];
-        $failedUrl = Shop::getURL() . '/' . WalleeHelper::PLUGIN_CUSTOM_PAGES['fail-page'][$_SESSION['cISOSprache']];
+        $successUrl = WalleeHelper::getPluginPageUrl('thank-you-page');
+        $failedUrl = WalleeHelper::getPluginPageUrl('fail-page');
 
         $customer = $_SESSION['Kunde'];
-        $customerEmail = $customer->cMail ?? '';
+        $customerEmail = $this->sanitizeAddressField($customer->cMail ?? '', 254) ?? '';
         $customerId = $customer->kKunde ?? '';
 
         $transactionPayload->setSuccessUrl($successUrl)
@@ -201,8 +201,8 @@ class WalleeTransactionService
         ]);
 
         $pendingTransaction->setMerchantReference($orderNr);
-        $successUrl = Shop::getURL() . '/' . WalleeHelper::PLUGIN_CUSTOM_PAGES['thank-you-page'][$_SESSION['cISOSprache']];
-        $failedUrl = Shop::getURL() . '/' . WalleeHelper::PLUGIN_CUSTOM_PAGES['fail-page'][$_SESSION['cISOSprache']];
+        $successUrl = WalleeHelper::getPluginPageUrl('thank-you-page');
+        $failedUrl = WalleeHelper::getPluginPageUrl('fail-page');
 
         $pendingTransaction->setSuccessUrl($successUrl . '?tID=' . $transactionId);
         $pendingTransaction->setFailedUrl($failedUrl . '?tID=' . $transactionId);
@@ -761,8 +761,37 @@ class WalleeTransactionService
     }
 
     /**
-     * Strip non-printable control characters (keeping line breaks) and truncate
-     * to the SDK / Wallee API limit. Required because the API rejects with 442
+     * Turn the HTML entities JTL stores in the session back into characters, the same way
+     * Text::unhtmlentities() does it for the order itself.
+     *
+     * Numeric references are resolved by hand on purpose: html_entity_decode() keeps
+     * everything it considers invalid as literal text, so a Windows-1252 paste stored as
+     * &#146; would reach the portal as the visible string "&#146;" instead of a character
+     * the strip below can remove.
+     */
+    private function decodeHtmlEntities(string $value): string
+    {
+        $decoded = preg_replace_callback(
+            '/&#(?:x([\da-fA-F]+)|(\d+));/',
+            static function (array $match): string {
+                $isHex = isset($match[1]) && $match[1] !== '';
+                $codePoint = $isHex ? (int)hexdec($match[1]) : (int)$match[2];
+                $char = $codePoint > 0 && $codePoint <= 0x10FFFF ? mb_chr($codePoint, 'UTF-8') : false;
+
+                // No valid code point behind the reference - drop it instead of
+                // passing the raw "&#...;" text on to the portal.
+                return $char === false ? '' : $char;
+            },
+            $value
+        ) ?? $value;
+
+        return html_entity_decode($decoded, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    }
+
+    /**
+     * Decode the HTML entities JTL keeps in the session, strip non-printable control
+     * characters (keeping line breaks) and truncate to the SDK / Wallee API limit.
+     * Required because the API rejects with 442
      * "The street can contain only printable characters including line breaks."
      * and the SDK throws InvalidArgumentException when length is exceeded —
      * e.g. for Asian addresses where mb_strlen counts characters and city
@@ -773,12 +802,31 @@ class WalleeTransactionService
         if ($value === null) {
             return null;
         }
-        $clean = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', $value);
-        if ($clean === null) {
-            // preg_replace returns null on UTF-8 decode failure; fall back to
-            // a byte-level strip so a malformed byte sequence cannot block payment.
-            $clean = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $value) ?? '';
-        }
+
+        // JTL keeps the checkout form input HTML encoded in the session
+        // (Registration\Form::getCustomerData() runs it through Text::htmlentities(), and
+        // OrderHandler::unhtmlSession() only decodes it when the order is finally created -
+        // long after the transaction payload is built). Sending that straight to the portal
+        // shows "M&uuml;ller &amp; Sohn" instead of "Müller & Sohn", so decode first.
+        $clean = $this->decodeHtmlEntities($value);
+
+        // The portal rejects address fields with "can contain only printable characters
+        // including line breaks" (HTTP 442). Stripping the C0 range alone is not enough:
+        // decoding above turns numeric entities into invisible but very much non-printable
+        // characters - C1 controls (&#146; from Windows-1252 pastes), soft hyphens (&shy;),
+        // zero width spaces (&#8203;) and friends.
+
+        // Drop malformed byte sequences - otherwise every /u pattern below returns null.
+        $clean = mb_convert_encoding($clean, 'UTF-8', 'UTF-8');
+        // Normalise everything the portal accepts as a line break.
+        $clean = preg_replace('/\r\n?|[\x{2028}\x{2029}]/u', "\n", $clean) ?? $clean;
+        // Tabs and the exotic Unicode spaces become plain spaces.
+        $clean = preg_replace('/[\t\x{00A0}\x{1680}\x{2000}-\x{200A}\x{202F}\x{205F}\x{3000}]/u', ' ', $clean) ?? $clean;
+        // Everything still in the Unicode "Other" category (Cc, Cf, Cs, Co, Cn) is
+        // non-printable by definition. Line breaks are explicitly allowed, so keep them.
+        $clean = preg_replace('/(?!\n)\p{C}/u', '', $clean) ?? $clean;
+        $clean = preg_replace('/ {2,}/', ' ', $clean) ?? $clean;
+
         $clean = trim($clean);
         if (mb_strlen($clean, 'UTF-8') > $maxLength) {
             $clean = mb_substr($clean, 0, $maxLength, 'UTF-8');
@@ -1011,7 +1059,30 @@ class WalleeTransactionService
         $paymentMethodEntity = new Zahlungsart((int)$order->kZahlungsart);
         $paymentMethod = new Method($paymentMethodEntity->cModulId ?? '');
         WalleeHelper::log("cancelOrderOnce: Cancelling order $orderId.");
-        $paymentMethod->cancelOrder($orderId);
+
+        try {
+            $paymentMethod->cancelOrder($orderId);
+        } catch (\Throwable $e) {
+            // Method::cancelOrder() sends the Storno mail before it touches the order, and
+            // Mail::createFromTemplate() throws outside of Mailer::send()'s own try/catch
+            // when the mail template is missing. A broken mail template must not keep the
+            // order in a paid-pending state, so fall back to the status update itself.
+            WalleeHelper::log(
+                "cancelOrderOnce: native cancelOrder failed for order $orderId ("
+                . get_class($e) . '): ' . $e->getMessage() . '. Falling back to a direct status update.'
+            );
+            Shop::Container()->getDB()->update(
+                'tbestellung',
+                'kBestellung',
+                $orderId,
+                (object)['cStatus' => \BESTELLUNG_STATUS_STORNO, 'dBezahltDatum' => 'NOW()']
+            );
+            Shop::Container()->getLogService()->error(
+                'Wallee: order {oid} was cancelled, but the cancellation mail could not be created: {err}. '
+                . 'Check the "order cancelled" email template - the customer was not notified.',
+                ['oid' => $orderId, 'err' => $e->getMessage()]
+            );
+        }
 
         return true;
     }

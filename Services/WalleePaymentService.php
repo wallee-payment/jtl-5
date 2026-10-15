@@ -3,6 +3,8 @@
 namespace Plugin\jtl_wallee\Services;
 
 use JTL\Helpers\PaymentMethod;
+use JTL\Helpers\Text;
+use JTL\Language\LanguageHelper;
 use JTL\Shop;
 use JTL\Plugin\Helper;
 use Plugin\jtl_wallee\WalleeHelper;
@@ -37,6 +39,11 @@ class WalleePaymentService
 	  'en-US' => 'eng',
 	  'es-ES' => 'spa',
 	];
+
+	/**
+	 * @var string[]|null Cached list of the ISO codes of the shop's own languages.
+	 */
+	private ?array $shopLanguageIsos = null;
 
 	/**
 	 * @var ApiClient $apiClient
@@ -279,6 +286,51 @@ class WalleePaymentService
 		}
 	}
 
+	/**
+	 * Resolve a portal locale to one of the shop's language ISO codes.
+	 *
+	 * getResolvedTitle()/getResolvedDescription() come back keyed by locale, and that
+	 * set is not limited to the five locales mapped above - the portal also returns
+	 * nl-NL, sv-SE, pl-PL and others depending on the space. Those used to hit an
+	 * undefined array key and then pile every unknown locale into $translations[''].
+	 *
+	 * @param string $locale e.g. 'de-DE'
+	 * @return string|null Shop language ISO ('ger'), or null when the shop does not run it.
+	 */
+	private function mapLocaleToLanguageIso(string $locale): ?string
+	{
+		$iso = $this->localeLanguageMapping[$locale] ?? null;
+		if ($iso !== null) {
+			return $iso;
+		}
+
+		// 'nl-NL' -> 'nl' -> 'dut'. Unknown codes are returned unchanged, hence the length check.
+		$iso = Text::convertISO6392ISO(mb_strtolower(mb_substr($locale, 0, 2)));
+		if (mb_strlen($iso) !== 3) {
+			return null;
+		}
+
+		// Only accept a locale we resolved ourselves when the shop actually runs that
+		// language - otherwise we would write translations for a language that does
+		// not exist. The five explicitly mapped locales keep their old behaviour.
+		return in_array($iso, $this->getShopLanguageIsos(), true) ? $iso : null;
+	}
+
+	/**
+	 * @return string[]
+	 */
+	private function getShopLanguageIsos(): array
+	{
+		if ($this->shopLanguageIsos === null) {
+			$this->shopLanguageIsos = [];
+			foreach (LanguageHelper::getAllLanguages() as $language) {
+				$this->shopLanguageIsos[] = $language->getIso();
+			}
+		}
+
+		return $this->shopLanguageIsos;
+	}
+
 	public function syncPaymentMethods()
 	{
 		if (!$this->apiClient) {
@@ -313,17 +365,27 @@ class WalleePaymentService
 					$this->enablePaymentMethods([($check[0])->kZahlungsart]);
 				} else {
 					$descriptions = [];
-					$languageMapping = $this->localeLanguageMapping;
 					foreach ($paymentMethod->getResolvedDescription() as $locale => $text) {
-						$language = $languageMapping[$locale];
+						$language = $this->mapLocaleToLanguageIso((string)$locale);
+						if ($language === null) {
+							continue;
+						}
 						$descriptions[$language] = $translations[$language][$slug . '_description'] = addslashes($text);
 					}
 
 					$titles = [];
 					foreach ($paymentMethod->getResolvedTitle() as $locale => $text) {
-						$language = $languageMapping[$locale];
+						$language = $this->mapLocaleToLanguageIso((string)$locale);
+						if ($language === null) {
+							continue;
+						}
 						$titles[$language] = $translations[$language][$slug . '_title'] = addslashes(str_replace('-/', ' / ', $text));
 					}
+
+					// The portal does not guarantee an English text, and the shop does not
+					// have to run English either, so fall back to whatever we did resolve.
+					$defaultTitle = $titles['eng'] ?? (reset($titles) ?: $slug);
+					$defaultDescription = $descriptions['eng'] ?? (reset($descriptions) ?: '');
 
 					$installedPaymentMethods = [];
 
@@ -332,8 +394,8 @@ class WalleePaymentService
 					  'logo_url' => $paymentMethod->getResolvedImageUrl(),
 					  'logo_alt' => $slug,
 					  'id' => $slug,
-					  'module' => $translations['eng'][$slug . '_title'],
-					  'description' => $translations['eng'][$slug . '_description'],
+					  'module' => $defaultTitle,
+					  'description' => $defaultDescription,
 					  'fields' => [],
 					  'titles' => $titles,
 					  'descriptions' => $descriptions

@@ -115,25 +115,55 @@ class WalleeHelper extends Helper
     public static function getLanguageIso($isAdmin = true): string
     {
         if (!$isAdmin) {
-            return $_SESSION['cISOSprache'];
+            // The session is gone whenever the customer returns from the payment
+            // provider with a fresh session. Returning null from a ": string"
+            // method would be a TypeError, so always fall back to the shop language.
+            return $_SESSION['cISOSprache'] ?? (Shop::getLanguageCode() ?: self::EN_ISO3);
         }
 
         $gettext = Shop::Container()->getGetText();
         $langTag = $_SESSION['AdminAccount']->language ?? $gettext->getLanguage();
 
-        switch (substr($langTag, 0, 2)) {
+        switch (substr((string)$langTag, 0, 2)) {
             case 'de':
                 return self::DE_ISO3;
-
-            case 'en':
-                return self::EN_ISO3;
 
             case 'fr':
                 return self::FR_ISO3;
 
             case 'it':
                 return self::IT_ISO3;
+
+            case 'en':
+            default:
+                return self::EN_ISO3;
         }
+    }
+
+    /**
+     * Absolute URL of one of the plugin's own frontend link pages.
+     *
+     * PLUGIN_CUSTOM_PAGES only carries slugs for ger/eng/ita/fre. Any other active
+     * shop language used to produce an undefined array key, turning the resulting
+     * success/fail URL into the bare shop root.
+     *
+     * @param string $page One of the PLUGIN_CUSTOM_PAGES keys.
+     * @return string
+     */
+    public static function getPluginPageUrl(string $page): string
+    {
+        $slugs = self::PLUGIN_CUSTOM_PAGES[$page] ?? [];
+        if (empty($slugs)) {
+            return Shop::getURL();
+        }
+
+        $iso = $_SESSION['cISOSprache'] ?? null;
+        $slug = $slugs[$iso]
+            ?? $slugs[Shop::getLanguageCode()]
+            ?? $slugs[self::EN_ISO3]
+            ?? reset($slugs);
+
+        return Shop::getURL() . '/' . $slug;
     }
 
     /**

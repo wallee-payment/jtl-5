@@ -2,6 +2,7 @@
 
 namespace Plugin\jtl_wallee\frontend;
 
+use JTL\Alert\Alert;
 use JTL\Checkout\Bestellung;
 use JTL\DB\DbInterface;
 use JTL\Plugin\PluginInterface;
@@ -93,9 +94,44 @@ final class Handler
     }
 
     /**
+     * Guard around the portal round trip that keeps the checkout transaction in sync.
+     *
+     * This runs from HOOK_SMARTY_OUTPUTFILTER, so anything thrown in here takes down the
+     * whole checkout page with an HTTP 500. A rejected transaction is a data problem
+     * (invalid address characters, unsupported currency, line item mismatch) or a
+     * temporary portal outage - in either case the shop has to degrade gracefully: hide
+     * our payment methods, tell the customer, and let them pick a different one.
+     *
      * @return void
      */
     private function handleTransaction(): void
+    {
+        try {
+            $this->doHandleTransaction();
+        } catch (\Throwable $e) {
+            WalleeHelper::log(
+                'handleTransaction: failed (' . get_class($e) . ' / HTTP ' . $e->getCode() . '): ' . $e->getMessage()
+            );
+
+            $_SESSION['transactionId'] = null;
+            $_SESSION['arrayOfPossibleMethods'] = [];
+            // Drop the fingerprints as well, otherwise the next request would consider
+            // the cart unchanged and skip the retry once the underlying data is fixed.
+            unset(
+                $_SESSION['addressCheck'],
+                $_SESSION['lineItemsCheck'],
+                $_SESSION['currencyCheck'],
+                $_SESSION['paymentMethodsCheck']
+            );
+
+            $this->addPaymentUnavailableAlert();
+        }
+    }
+
+    /**
+     * @return void
+     */
+    private function doHandleTransaction(): void
     {
         $createdTransactionId = $_SESSION['transactionId'] ?? null;
 
@@ -252,7 +288,7 @@ final class Handler
         $createdTransactionId = (int)$_SESSION['transactionId'] ?? null;
 
         if (empty($createdTransactionId)) {
-            $failedUrl = Shop::getURL() . '/' . WalleeHelper::PLUGIN_CUSTOM_PAGES['fail-page'][$_SESSION['cISOSprache']];
+            $failedUrl = WalleeHelper::getPluginPageUrl('fail-page');
             header("Location: " . $failedUrl);
             exit;
         }
@@ -265,7 +301,7 @@ final class Handler
 
         $paymentMethod = $this->transactionService->getTransactionPaymentMethod($createdTransactionId, $spaceId);
         if (empty($paymentMethod)) {
-            $failedUrl = Shop::getURL() . '/' . WalleeHelper::PLUGIN_CUSTOM_PAGES['fail-page'][$_SESSION['cISOSprache']];
+            $failedUrl = WalleeHelper::getPluginPageUrl('fail-page');
             header("Location: " . $failedUrl);
             exit;
         }
@@ -284,7 +320,7 @@ final class Handler
                 'getRedirectUrlAfterCreatedTransaction: confirm failed (HTTP '
                 . $e->getCode() . '): ' . $e->getMessage()
             );
-            return Shop::getURL() . '/' . WalleeHelper::PLUGIN_CUSTOM_PAGES['fail-page'][$_SESSION['cISOSprache']];
+            return WalleeHelper::getPluginPageUrl('fail-page');
         }
 
 		$integration = WalleeHelper::getIntegrationType($this->plugin->getId());
@@ -295,7 +331,7 @@ final class Handler
             return $redirectUrl;
         }
 
-        return WalleeHelper::PLUGIN_CUSTOM_PAGES['payment-page'][$_SESSION['cISOSprache']];
+        return WalleeHelper::getPluginPageUrl('payment-page');
     }
 
     public function contentUpdate(array $args): void
@@ -316,12 +352,52 @@ final class Handler
                     $order = $smarty->getTemplateVars('Bestellung');
 
                     if (!empty($order)) {
-                        $redirectUrl = $this->getRedirectUrlAfterCreatedTransaction($order);
+                        try {
+                            $redirectUrl = $this->getRedirectUrlAfterCreatedTransaction($order);
+                        } catch (\Throwable $e) {
+                            // Same reasoning as handleTransaction(): this runs inside the
+                            // output filter, so an unhandled exception here would render an
+                            // HTTP 500 instead of the checkout. Send the customer to the
+                            // fail page, which performs the order/stock rollback.
+                            WalleeHelper::log(
+                                'contentUpdate: redirect after created transaction failed ('
+                                . get_class($e) . ' / HTTP ' . $e->getCode() . '): ' . $e->getMessage()
+                            );
+                            $redirectUrl = WalleeHelper::getPluginPageUrl('fail-page');
+                        }
+
                         header("Location: " . $redirectUrl);
                         exit;
                     }
                 }
                 break;
+        }
+    }
+
+    /**
+     * Tell the customer why our payment methods disappeared from the checkout.
+     *
+     * @return void
+     */
+    private function addPaymentUnavailableAlert(): void
+    {
+        try {
+            $translations = WalleeHelper::getTranslations($this->plugin->getLocalization(), [
+                'jtl_wallee_payment_temporarily_unavailable',
+            ], false);
+            $message = $translations['jtl_wallee_payment_temporarily_unavailable'] ?? '';
+            if ($message === '') {
+                return;
+            }
+
+            Shop::Container()->getAlertService()->addAlert(
+                Alert::TYPE_ERROR,
+                $message,
+                'wallee_payment_unavailable',
+                ['saveInSession' => true]
+            );
+        } catch (\Throwable $e) {
+            WalleeHelper::log('addPaymentUnavailableAlert: ' . $e->getMessage());
         }
     }
 
