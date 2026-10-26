@@ -9,7 +9,7 @@
     <Icon>logo.jpg</Icon>
     <PluginID>jtl_wallee</PluginID>
     <CreateDate>2023-05-29</CreateDate>
-    <Version>1.0.50</Version>
+    <Version>1.0.51</Version>
     <Install>
         <Locales>
             <Variable>
@@ -67,6 +67,20 @@
                 <VariableLocalized iso="ENG">The payment could not be completed. Please choose a payment method to complete your order.</VariableLocalized>
                 <VariableLocalized iso="ITA">Non è stato possibile completare il pagamento. Seleziona un metodo di pagamento per completare l'ordine.</VariableLocalized>
                 <VariableLocalized iso="FRE">Le paiement n'a pas pu être finalisé. Veuillez choisir un moyen de paiement pour finaliser votre commande.</VariableLocalized>
+            </Variable>
+            <Variable>
+                <Name>jtl_wallee_invalid_request</Name>
+                <VariableLocalized iso="GER">Die Anfrage konnte nicht verifiziert werden. Bitte laden Sie die Seite neu und versuchen Sie es erneut.</VariableLocalized>
+                <VariableLocalized iso="ENG">The request could not be verified. Please reload the page and try again.</VariableLocalized>
+                <VariableLocalized iso="ITA">Non è stato possibile verificare la richiesta. Ricarica la pagina e riprova.</VariableLocalized>
+                <VariableLocalized iso="FRE">La demande n'a pas pu être vérifiée. Veuillez recharger la page et réessayer.</VariableLocalized>
+            </Variable>
+            <Variable>
+                <Name>jtl_wallee_refund_not_possible</Name>
+                <VariableLocalized iso="GER">Diese Erstattung kann nicht mehr ausgeführt werden. Bitte laden Sie die Seite neu, um den aktuellen Stand der Transaktion zu sehen.</VariableLocalized>
+                <VariableLocalized iso="ENG">This refund can no longer be processed. Please reload the page to see the current state of the transaction.</VariableLocalized>
+                <VariableLocalized iso="ITA">Questo rimborso non può più essere elaborato. Ricarica la pagina per vedere lo stato attuale della transazione.</VariableLocalized>
+                <VariableLocalized iso="FRE">Ce remboursement ne peut plus être traité. Veuillez recharger la page pour voir l'état actuel de la transaction.</VariableLocalized>
             </Variable>
             <Variable>
                 <Name>jtl_wallee_need_to_install_sdk</Name>
@@ -217,7 +231,7 @@
             </Variable>
             <Variable>
                 <Name>jtl_wallee_download_invoice</Name>
-                <VariableLocalized iso="GER">Herunterladen</VariableLocalized>
+                <VariableLocalized iso="GER">Rechnung herunterladen</VariableLocalized>
                 <VariableLocalized iso="ENG">Download Invoice</VariableLocalized>
                 <VariableLocalized iso="ITA">Scarica Fattura</VariableLocalized>
                 <VariableLocalized iso="FRE">Télécharger la Facture</VariableLocalized>

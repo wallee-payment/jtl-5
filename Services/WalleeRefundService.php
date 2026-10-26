@@ -102,6 +102,20 @@ class WalleeRefundService
     }
 
     /**
+     * The amount that may still be refunded according to the portal. The local refunds table is
+     * filled by the refund webhook and therefore can lag behind right after a refund was created.
+     *
+     * @param Transaction $transaction
+     * @return float
+     */
+    public function getRefundableAmount(Transaction $transaction): float
+    {
+        $completedAmount = (float)($transaction->getCompletedAmount() ?: $transaction->getAuthorizationAmount());
+
+        return \round($completedAmount - (float)$transaction->getRefundedAmount(), 2);
+    }
+
+    /**
      * @param string $refundId
      * @return Refund
      */

@@ -43,13 +43,13 @@
                     </button>
                 </div>
                 <div class="col-sm-3 col-xl-auto">
-                    <a href="{$postUrl}&action=download_invoice&transactionId={$transactionId}" download
+                    <a href="{$postUrl}&action=download_invoice&transactionId={$transactionId}&token={$smarty.session.jtl_token}" download
                        class="btn btn-outline-primary btn-block" type="button">
                         {$translations.jtl_wallee_download_invoice}
                     </a>
                 </div>
                 <div class="col-sm-3 col-xl-auto">
-                    <a href="{$postUrl}&action=download_packaging_slip&transactionId={$transactionId}" download
+                    <a href="{$postUrl}&action=download_packaging_slip&transactionId={$transactionId}&token={$smarty.session.jtl_token}" download
                        class=" btn btn-outline-primary btn-block" type="button">
                         {$translations.jtl_wallee_download_packaging_slip}
                     </a>
@@ -66,6 +66,7 @@
     <div class="card card-body">
         {if $showRefundsForm}
             <div class="mt-5">
+                <input type="hidden" id="wallee-refund-submit-token" value="{$refundSubmitToken}">
                 <h2>{$translations.jtl_wallee_make_refund}</h2>
                 <b>{$translations.jtl_wallee_amount_to_refund}:</b> <input type="text" id="refund-amount" value="{$amountToBeRefunded}"/>
                 <button onclick="transactionAction({$transactionId}, 'refund', $('#refund-amount').val())" type="button"
@@ -161,6 +162,7 @@
 
 <script>
     var request;
+    var walleeToken = '{$smarty.session.jtl_token}';
 
     function transactionAction(transactionId, action, amount = 0) {
         if (request) {
@@ -179,7 +181,9 @@
             data: {
                 'transactionId': transactionId,
                 'action': action,
-                'amount': amount
+                'amount': amount,
+                'jtl_token': walleeToken,
+                'refundSubmitToken': $('#wallee-refund-submit-token').val()
             }
         });
 
@@ -198,8 +202,10 @@
             return false;
         });
 
-        request.fail(function () {
+        request.fail(function (xhr) {
+            loader.hide();
             $button.prop("disabled", false);
+            alert(xhr.responseText || 'The request could not be processed.');
         });
     };
 

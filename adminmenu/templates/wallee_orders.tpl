@@ -55,8 +55,11 @@
 
 <script>
     var requestUrl = $('#form-url').val();
+    var walleeToken = '{$smarty.session.jtl_token}';
 
     function showDetails(requestParams) {
+        requestParams.jtl_token = walleeToken;
+
         $.ajax({
             url: requestUrl,
             type: 'POST',
@@ -69,6 +72,9 @@
                 $('#transaction-info').html(result);
                 $('#transaction-info').show();
                 $('.pagination-toolbar').hide();
+            },
+            error: function (xhr) {
+                alert(xhr.responseText || 'The request could not be processed.');
             }
         });
     }
